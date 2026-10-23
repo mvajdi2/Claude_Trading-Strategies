@@ -1,0 +1,22 @@
+{
+ "id": "asian_range_breakout",
+ "params": {
+  "range_end": 6,
+  "buffer_usd": 2.0,
+  "cutoff": 12,
+  "vol_state": "top",
+  "rng_filter": "atr",
+  "range_start": 0,
+  "flat_h": 16,
+  "tgt_x": 1.5
+ },
+ "exit": {
+  "sl": 2.0,
+  "tp": 1.0
+ },
+ "note": "Batch A: top IS PF(R) row (2.33, n=72) of 300-combo optimise (+120 earlier sample); ATR range filter + top-tercile prior-day vol; VAL PF 2.40. Gates (WR>75, PF>3) not met on IS/VAL; frozen for honest frontier.",
+ "code_sha": "2699d1a2c347355a",
+ "frozen_at": "2026-10-23T23:58:07.381852+00:00",
+ "oos_run": false,
+ "robust_median_pf_IS": 1.9220445401657
+}
