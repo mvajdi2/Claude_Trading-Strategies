@@ -1,0 +1,390 @@
+id: practitioners-asian-range-london-breakout
+name: Asian-range London breakout with range-size filter (OCO stops, 2.5R)
+mechanism: breakout
+timeframe_signal: 1m
+session: "range 00:00-05:00 UTC, orders live 05:00-21:00 UTC"
+entry:
+  long:  "at 05:00 UTC place buy stop at AsianHigh + buffer; Asian range = high/low of 00:00-05:00 UTC"
+  short: "at 05:00 UTC place sell stop at AsianLow - buffer (OCO with the long)"
+  order: stop
+stop: "opposite side of the Asian range, capped at 0.6% of price"
+target: "2.5R; move stop to break-even at +1.5R"
+time_exit: "21:00 UTC"
+filters:
+  - "skip day if range < 0.30% or > 1.60% of price"
+  - "max 1 trade per day (cancel the other leg on fill)"
+params:
+  range_end_utc:   {default: "05:00", grid: ["05:00", "06:00", "07:00"]}
+  buffer_pct:      {default: 0.02, grid: [0.0, 0.02, 0.05]}
+  target_r:        {default: 2.5, grid: [1.5, 2.0, 2.5, 3.0]}
+  be_trigger_r:    {default: 1.5, grid: [1.0, 1.5, none]}
+  min_range_pct:   {default: 0.30, grid: [0.2, 0.3, 0.4]}
+  max_range_pct:   {default: 1.60, grid: [1.0, 1.3, 1.6]}
+expected_frequency: "~0.7 per day (715 trades in 3.7y reported)"
+claimed: "PF 1.38, maxDD 17.3% at 1% risk, real-tick MT5 Jan 2023-Sep 2026, 715 trades; 2026 holdout PF 1.61 on 157 trades (author blog)"
+assumptions:
+  - "Source states 03:00-08:00 SERVER time; converted assuming a GMT+3 server -> 00:00-05:00 UTC. Verify; London-open variant (range end 07:00 UTC) is in the grid."
+  - "Buffer size not given in summary; 0.02% of price chosen by researcher"
+sources:
+  - https://www.mql5.com/en/blogs/post/777540
+  - https://kr.tradingview.com/script/rCMX1vGE-GOLD-Asian-Range-Breakout-Signals/
+  - https://www.mql5.com/en/blogs/post/777728
+notes: >
+  Differs from T7 (scheduled-anchor momentum/fade) by using a whole-session range, a range-size
+  regime filter, wide structural stop and 2.5R target. Author found tight in-range stops and no
+  range filter both hurt. Counter-evidence: an 18-year test of 288 gold breakout variants found
+  little edge outside the post-2017 bull market; long-side results may be bull-drift. Report long
+  and short legs separately and test pre-2023 data.
+---
+id: practitioners-asian-range-false-break-fade
+name: Asian-range false breakout fade (break, close outside, close back inside)
+mechanism: structure
+timeframe_signal: 15m
+session: "06:00-16:00 UTC"
+entry:
+  long:  "a 15m bar has closed below AsianLow (00:00-06:00 UTC); later a 15m bar closes back above AsianLow -> buy at that close"
+  short: "a 15m bar has closed above AsianHigh; later a 15m bar closes back below AsianHigh -> sell at that close"
+  order: market
+stop: "beyond the extreme of the failed breakout + 0.1*ATR14(15m)"
+target: "opposite side of the Asian range, or 2R if closer"
+time_exit: "16:00 UTC"
+filters:
+  - "re-entry must happen within N bars of the first outside close"
+  - "max 1 trade per day; skip if Asian range > 1.5*ATR14(1h)*6"
+params:
+  asian_end_utc:   {default: "06:00", grid: ["05:00", "06:00", "07:00"]}
+  max_bars_outside: {default: 8, grid: [4, 8, 16]}
+  target_mode:     {default: "opposite_side", grid: ["opposite_side", "1R", "2R", "range_mid"]}
+expected_frequency: "~0.3-0.5 per day"
+claimed: "none"
+assumptions:
+  - "Session times, stop, target, max-bars and range filter are researcher-chosen; the H1 script description gives only the logic"
+  - "Signal bar moved from 1h (script) to 15m; 1h variant should also be run"
+sources:
+  - https://jp.tradingview.com/script/8Iv42BDE-Gold-H1-Breakout-Failure-V11-0
+  - https://www.mql5.com/en/blogs/post/773690
+  - https://www.forexfactory.com/thread/post/14806417
+notes: >
+  Mirror image of the London breakout card: practitioners claim the first break of the Asian
+  range is often the liquidity grab. Coding both on the same data shows which side carries the
+  effect. Differs from T4 (sub-5s sweep of 15/30-min levels) in timescale and level: session range,
+  15m bar closes, hold for hours.
+---
+id: practitioners-pdh-pdl-sweep-reclaim
+name: Previous-day high/low sweep and reclaim (gold turtle soup, 15m)
+mechanism: structure
+timeframe_signal: 15m
+session: "07:00-17:00 UTC"
+entry:
+  long:  "15m bar trades below PDL and closes back above PDL with close > open and lower wick > upper wick -> buy at close"
+  short: "15m bar trades above PDH and closes back below PDH with close < open and upper wick > lower wick -> sell at close"
+  order: market
+stop: "beyond sweep-bar extreme + 0.1*ATR14(15m)"
+target: "1.5R"
+time_exit: "20:00 UTC"
+filters:
+  - "optional EMA200(15m) bias: longs only above, shorts only below"
+  - "sweep depth beyond PDH/PDL <= 0.5*ATR14(15m) (deeper = real breakout)"
+  - "max 1 trade per side per day"
+params:
+  target_r:       {default: 1.5, grid: [1.0, 1.5, 2.0, 3.0]}
+  max_sweep_atr:  {default: 0.5, grid: [0.25, 0.5, 1.0]}
+  ema_filter:     {default: false, grid: [false, true]}
+expected_frequency: "~0.3 per day"
+claimed: "none"
+assumptions:
+  - "Day boundary for PDH/PDL = 22:00 UTC (NY close); researcher choice"
+  - "Sweep-depth cap and session window are researcher-chosen"
+sources:
+  - https://cn.tradingview.com/script/hLV3gFmw
+  - https://www.mql5.com/ko/market/product/187490
+  - https://es.tradingview.com/scripts/asian
+notes: >
+  Raschke turtle-soup family on daily levels. Differs from T1-T4 (sub-5s spark/sweep reversals of
+  15/30-min levels) by using once-per-day levels and 15m closes rather than tick flow, so costs
+  are a small fraction of the move.
+---
+id: practitioners-shanghai-open-orb
+name: Shanghai-open 5-minute opening range breakout (1m close trigger)
+mechanism: session_time
+timeframe_signal: 1m
+session: "01:30-06:00 UTC"
+entry:
+  long:  "range = high/low of the 01:30-01:35 UTC 5m bar; first 1m close above range high -> buy"
+  short: "first 1m close below range low -> sell"
+  order: market
+stop: "fixed 5.0 USD (50 GC ticks); alt: opposite side of range"
+target: "fixed 10.0 USD (100 ticks) = 2R"
+time_exit: "06:00 UTC"
+filters: ["max 1 trade per day", "only first trigger after range completes"]
+params:
+  range_start_utc: {default: "01:30", grid: ["01:00", "01:30", "02:30"]}
+  range_minutes:   {default: 5, grid: [5, 15, 30]}
+  stop_usd:        {default: 5.0, grid: [2.5, 5.0, 7.5, "range"]}
+  target_r:        {default: 2.0, grid: [1.0, 1.5, 2.0]}
+expected_frequency: "~1 per day"
+claimed: "none"
+assumptions:
+  - "Script uses 8:30-8:35 pm US Central; converted to 01:30 UTC (CDT). In US winter it is 02:30 UTC; the session anchor should follow the Shanghai clock (UTC+8), so 01:30 UTC = 09:30 Beijing. Grid includes 01:00 (SGE 09:00 open)."
+  - "Fixed USD stop/target were set at older gold prices; consider scaling by price or ATR"
+  - "Time exit chosen by researcher"
+sources:
+  - https://www.tradingview.com/script/Edp98cOR-GC-Shanghai-ORB-Simple-1m-Close-Trigger-v6
+notes: >
+  T7 covered the Tokyo open but not the Shanghai/SGE open. Chinese demand is a plausible driver of
+  Asian-hours flow (see hat-seasonality card). Spreads in Asia are wider; check cost share of a
+  5 USD stop.
+---
+id: practitioners-asia-hours-drift
+name: Asian-hours long drift ("hat-shaped" gold seasonality)
+mechanism: session_time
+timeframe_signal: 1h
+session: "00:00-07:00 UTC (long leg); optional 08:00-20:00 UTC (short leg)"
+entry:
+  long:  "buy at 00:00 UTC open every trading day"
+  short: "optional: sell at 08:00 UTC open, exit 20:00 UTC"
+  order: market
+stop: "none, or 2*ATR14(1h) catastrophe stop"
+target: "none (time exit)"
+time_exit: "07:00 UTC for long leg; 20:00 UTC for short leg"
+filters:
+  - "variant: only trade long leg when prior 08:00-20:00 return < 0"
+  - "skip Mondays (weekend gap) as a variant"
+params:
+  entry_utc: {default: "00:00", grid: ["23:00", "00:00", "01:00"]}
+  exit_utc:  {default: "07:00", grid: ["05:00", "06:00", "07:00", "08:00"]}
+  legs:      {default: "long_only", grid: ["long_only", "short_only", "both"]}
+expected_frequency: "1 per day per leg"
+claimed: "Sharpe up to 1.61 before costs; underperforms buy-and-hold after costs but still somewhat profitable (CBS master's thesis, 2019)"
+assumptions:
+  - "Exact Eastern-hours window not in abstract; 00:00-07:00 UTC chosen by researcher"
+  - "Stop and filters are researcher-chosen"
+sources:
+  - https://research.cbs.dk/en/studentProjects/gold-price-dynamics-around-the-clock/
+  - https://reading-clone.eprints-hosting.org/79175/1/BattenLuceyMcGroartyPeatUrquhart2017.pdf
+notes: >
+  Low-turnover, no-indicator baseline. Main risk: the long leg is contaminated by gold's secular
+  uptrend, so always compare against an equal-length random-hour long and report the short leg.
+  Not covered by T7 (anchors x short reactions) because it holds a whole session.
+---
+id: practitioners-ny-supertrend-rsi
+name: NY-session Supertrend + RSI 55/45 momentum (5m, 1:2 RR)
+mechanism: momentum
+timeframe_signal: 5m
+session: "12:00-21:00 UTC (08:00-17:00 New York, DST-adjusted)"
+entry:
+  long:  "Supertrend(10,3) bullish AND RSI14 crosses above 55 -> buy at bar close"
+  short: "Supertrend(10,3) bearish AND RSI14 crosses below 45 -> sell at bar close"
+  order: market
+stop: "Supertrend line at entry"
+target: "2 * stop distance"
+time_exit: "17:00 New York (21:00 UTC in summer, 22:00 UTC in winter -> cap at 21:00 UTC)"
+filters: ["one position at a time", "max 3 trades per session"]
+params:
+  st_atr_len: {default: 10, grid: [7, 10, 14]}
+  st_mult:    {default: 3.0, grid: [2.0, 3.0, 4.0]}
+  rsi_up:     {default: 55, grid: [52, 55, 60]}
+  target_r:   {default: 2.0, grid: [1.0, 1.5, 2.0, 3.0]}
+expected_frequency: "~1-3 per day"
+claimed: "none ($240k is notional size, not a result)"
+assumptions:
+  - "Supertrend parameters (10,3) and max-trades cap are researcher defaults; not stated in summary"
+sources:
+  - https://es.tradingview.com/script/qtRLvhR3-XAUUSD-5m-NY-Supertrend-RSI-Optimizer-1-2-RR-240k-order
+notes: >
+  Plain indicator trend-following, included as a representative of the most common YouTube/TV
+  gold style. Gold whipsaws punish tight trend entries (mql5 774275), so expect a low baseline;
+  useful as a control.
+---
+id: practitioners-rsi-extreme-ema200-fade
+name: RSI(14) extreme fade with EMA200 trend filter (1m/5m scalper)
+mechanism: mean_reversion
+timeframe_signal: 5m
+session: "07:00-20:00 UTC"
+entry:
+  long:  "close > EMA200 AND RSI14 < 30 -> buy at close"
+  short: "close < EMA200 AND RSI14 > 70 -> sell at close"
+  order: market
+stop: "1.0*ATR14 (script: fixed 0.05 USD)"
+target: "2.0*ATR14 (script: fixed 0.10 USD)"
+time_exit: "60 min after entry or 20:00 UTC"
+filters: ["one position at a time", "skip 5 min around 12:30 and 14:00 UTC US releases"]
+params:
+  tf:        {default: "5m", grid: ["1m", "5m"]}
+  rsi_lo:    {default: 30, grid: [20, 25, 30]}
+  stop_atr:  {default: 1.0, grid: [0.5, 1.0, 1.5]}
+  target_atr: {default: 2.0, grid: [0.5, 1.0, 2.0]}
+  ema_filter: {default: true, grid: [true, false]}
+expected_frequency: "~3-8 per day"
+claimed: "positive expectancy at ~55-65% WR before costs (author assertion, unverified)"
+assumptions:
+  - "Script's 5/10-pip fixed exits (0.05/0.10 USD) are below typical XAUUSD spread; replaced with ATR multiples by researcher"
+  - "Time exit and news filter researcher-chosen"
+sources:
+  - https://in.tradingview.com/scripts/scalping/page-7/
+  - https://in.tradingview.com/scripts/1minute
+notes: >
+  "Buy the dip in an uptrend" scalper. As written it cannot beat costs; ATR exits make it testable.
+  Strong bull-regime dependence expected (mql5 777045: buy-side logic looks brilliant in 2023-26).
+---
+id: practitioners-vwap-3sd-fade
+name: Session VWAP 3-sigma band fade back to VWAP
+mechanism: vwap
+timeframe_signal: 5m
+session: "07:00-20:00 UTC"
+entry:
+  long:  "VWAP anchored 00:00 UTC; close < VWAP - 3*sd -> next bar closes back above lower band -> buy"
+  short: "close > VWAP + 3*sd -> next bar closes back below upper band -> sell"
+  order: market
+stop: "extreme of the excursion + 0.25*ATR14(5m)"
+target: "VWAP (or 1sd band as partial)"
+time_exit: "20:00 UTC or 3h after entry"
+filters:
+  - "prefer longs when daily VWAP slope > 0, shorts when < 0 (variant)"
+  - "skip if trend filter shows strong trend: |EMA50 slope| > k*ATR (gold MR fails in trends)"
+params:
+  band_sd:      {default: 3.0, grid: [2.0, 2.5, 3.0]}
+  anchor:       {default: "00:00 UTC", grid: ["00:00 UTC", "07:00 UTC", "13:30 UTC"]}
+  slope_filter: {default: false, grid: [false, true]}
+expected_frequency: "~0.5-1 per day"
+claimed: "none"
+assumptions:
+  - "VWAP anchor, sd computation (volume-weighted variance on tick volume), stop and trend filter are researcher-chosen"
+  - "Spot XAUUSD has only tick volume; use tick count as weight"
+sources:
+  - https://kr.tradingview.com/script/fVu5DNuk/
+  - https://it.tradingview.com/script/uqFwueXb-AURUM-5-Gold-Engine-Trend-VWAP-MR-EBP-5m
+  - https://www.mql5.com/en/blogs/post/774959
+notes: >
+  Only VWAP/value idea in this lane. 774959 warns mean reversion on gold earns in ranges then
+  gives back in trends, so the trend-veto filter is the key parameter to study.
+---
+id: practitioners-ict-silver-bullet-fvg
+name: ICT Silver Bullet (liquidity raid + 5m FVG limit, 10-11 and 14-15 NY)
+mechanism: structure
+timeframe_signal: 5m
+session: "14:00-15:00 UTC and 18:00-19:00 UTC in US summer (10-11 and 14-15 New York)"
+entry:
+  long:  "in window, after price has traded below one of {Asia low, London low, 09:00 NY 1h low}: a bullish 3-bar FVG forms (low[0] > high[2]) -> buy limit at top of FVG"
+  short: "after a raid above one of {Asia high, London high, 09:00 NY high}: bearish FVG (high[0] < low[2]) -> sell limit at bottom of FVG"
+  order: limit
+stop: "beyond candle 1 of the FVG (wick)"
+target: "2R, or nearest opposite liquidity level"
+time_exit: "unfilled limits cancel at window end; open trades close 20:00 UTC"
+filters:
+  - "min FVG size >= 0.2*ATR14(5m)"
+  - "if both highs and lows were raided, skip"
+  - "max 1 win per window"
+params:
+  min_fvg_atr: {default: 0.2, grid: [0.1, 0.2, 0.4]}
+  stop_mode:   {default: "wick", grid: ["wick", "body"]}
+  target_r:    {default: 2.0, grid: [1.0, 2.0, 3.0]}
+  windows:     {default: "both", grid: ["am", "pm", "both"]}
+expected_frequency: "~0.5-1 per day"
+claimed: "none"
+assumptions:
+  - "Asia = 00:00-06:00 UTC, London = 07:00-11:00 UTC; researcher-defined"
+  - "FVG size floor, both-sides-raided rule and targets are researcher choices (script leaves them open)"
+sources:
+  - https://my.tradingview.com/script/K6B5kxjJ-ICT-Silver-Bullet-JadeCap
+  - https://ctrader.com/id/products/4984
+notes: >
+  Very popular on YouTube. Limit entry risks the adverse selection seen in T5, so also run a
+  market-on-FVG-close variant. Differs from T8 (first-minute NYSE momentum) in that it requires a
+  prior session-level raid and enters on a retrace 30-90 min after the open.
+---
+id: practitioners-round20-level-reaction
+name: $20 round-level first-touch reaction (1-dollar zone)
+mechanism: other
+timeframe_signal: 1m
+session: "07:00-20:00 UTC"
+entry:
+  long:  "price approaches a multiple of 20 USD from above; first touch of [L, L+1] today -> buy at L+0.5 limit"
+  short: "first touch of [L-1, L] from below -> sell at L-0.5 limit"
+  order: limit
+stop: "2.0 USD through the level (beyond the measured 1-3 USD influence zone)"
+target: "2.0 USD (1R) or 0.5*ATR14(15m)"
+time_exit: "60 min after entry"
+filters:
+  - "level must not have been touched in the prior 4h"
+  - "skip 10 min around scheduled US releases"
+params:
+  level_step: {default: 20, grid: [10, 20, 50, 100]}
+  stop_usd:   {default: 2.0, grid: [1.5, 2.0, 3.0]}
+  target_usd: {default: 2.0, grid: [1.0, 2.0, 4.0]}
+  direction:  {default: "bounce", grid: ["bounce", "break"]}
+expected_frequency: "~1-3 per day at 2026 volatility"
+claimed: "reaction to $20 levels is measurable on 8.5y of H1 data, zone ~1 USD wide, gone by 3 USD; nothing on FX majors (blog)"
+assumptions:
+  - "Blog reports a reaction but the summary does not state direction; bounce vs break both in grid"
+  - "All entry/exit numbers researcher-chosen"
+sources:
+  - https://www.mql5.com/en/blogs/post/775454
+  - https://id.tradingview.com/script/Ggfalp0D-Big-Round-Number-for-GOLD-XAU-USD
+notes: >
+  Include a placebo: same rules at levels offset by 10.37 USD; the blog itself flags selection
+  bias in level studies. At 4000+ USD gold, a 1-USD zone is tiny relative to noise; level_step
+  grid tests whether bigger numbers matter more now.
+---
+id: practitioners-bbkc-squeeze-release
+name: Bollinger-inside-Keltner squeeze release (15m, London/NY)
+mechanism: volatility
+timeframe_signal: 15m
+session: "07:00-19:00 UTC"
+entry:
+  long:  "squeeze on (BB20,2 inside KC20,1.5*ATR) for >= 6 bars, then squeeze off AND close > SMA20 AND close > upper BB -> buy"
+  short: "squeeze off AND close < SMA20 AND close < lower BB -> sell"
+  order: market
+stop: "opposite KC band or 1.5*ATR14(15m), whichever is closer"
+target: "trail: exit on close back inside SMA20; or 2R"
+time_exit: "20:00 UTC"
+filters: ["max 2 trades per day", "tick-volume > 20-bar average (variant)"]
+params:
+  kc_mult:        {default: 1.5, grid: [1.0, 1.25, 1.5]}
+  min_squeeze_bars: {default: 6, grid: [3, 6, 12]}
+  exit_mode:      {default: "sma20_trail", grid: ["sma20_trail", "2R", "time"]}
+  tf:             {default: "15m", grid: ["5m", "15m", "1h"]}
+expected_frequency: "~0.5-1 per day"
+claimed: "none"
+assumptions:
+  - "Script recommends 1h/4h; 15m intraday default and min squeeze length are researcher choices"
+  - "Stop and exit rules researcher-chosen"
+sources:
+  - https://getpineforge.com/strategies/xauusd-squeeze-breakout
+  - https://cn.tradingview.com/scripts/bollingerbands
+notes: >
+  Volatility-regime entry independent of clock time, which may be more robust to session-time
+  drift than T7-style anchors. Gold's false-break tendency is the main risk; 1h variant may help.
+---
+id: practitioners-london-range-break-retest
+name: London-range break and retest continuation in NY session
+mechanism: breakout
+timeframe_signal: 5m
+session: "12:00-19:00 UTC"
+entry:
+  long:  "London range = 07:00-12:00 UTC high/low; a 15m bar closes above LondonHigh after 12:00; within 12 bars (5m) price retraces to within 0.1*ATR14(15m) of LondonHigh and a 5m bar closes back up (close > open, close > LondonHigh) -> buy at close"
+  short: "mirror below LondonLow"
+  order: market
+stop: "LondonHigh - 0.5*ATR14(15m) (long); mirror for short"
+target: "2R"
+time_exit: "19:00 UTC"
+filters:
+  - "breakout bar range >= 0.8*ATR14(15m) (displacement)"
+  - "skip if London range > 2*ATR14(1h)*5 (already extended)"
+  - "max 1 trade per day"
+params:
+  retest_window_bars: {default: 12, grid: [6, 12, 24]}
+  stop_atr:           {default: 0.5, grid: [0.3, 0.5, 1.0]}
+  target_r:           {default: 2.0, grid: [1.0, 1.5, 2.0, 3.0]}
+expected_frequency: "~0.3 per day"
+claimed: "none"
+assumptions:
+  - "Source describes break-retest-continue behaviour only; all levels, windows and numbers researcher-chosen"
+sources:
+  - https://www.mql5.com/en/blogs/post/772513
+  - https://www.mql5.com/en/blogs/post/773690
+  - https://www.gomarkets.com/ko-kr/articles/the-break-and-retest---trading-setups
+notes: >
+  Answers the common complaint that gold breakouts reverse to the level before running. Differs
+  from T5 (retest limit after spike rejection = reversal) because it is a continuation entry
+  after a confirmed 15m close, entered on a confirming bar, not a resting limit.

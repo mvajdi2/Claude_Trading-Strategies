@@ -1,0 +1,354 @@
+# Lane 1: code marketplaces (TradingView, MQL5, cTrader, GitHub). Researched 2026-10-23.
+# TradingView / mql5.com / ctrader.com could not be fetched (ENOTFOUND); rules come from search-result
+# summaries of the listings. All times UTC unless stated. All positions flat by 21:00 UTC.
+id: marketplaces-asian-range-oco-breakout
+name: Asian range OCO stop breakout (London/NY)
+mechanism: breakout
+timeframe_signal: 5m
+session: "range 00:00-06:00 UTC; orders live 06:00-16:00 UTC"
+entry:
+  long:  "buy stop at AsianHigh + buffer, placed at 06:00 UTC"
+  short: "sell stop at AsianLow - buffer, placed at 06:00 UTC; when one fills cancel the other (OCO)"
+  order: stop
+stop: "opposite side of the Asian range (or midpoint, param)"
+target: "1.5 * range width"
+time_exit: "close any open position at 16:00 UTC; delete unfilled orders at 12:00 UTC"
+filters:
+  - "skip day if range width < 3.00 or > 20.00 USD (vendor's 300-2000 points 'normal day' filter)"
+  - "skip day if spread at placement > 0.35 USD (InpMaxSpreadPoints=350)"
+  - "optional HTF trend filter: no shorts if close > SMA100(W1), no longs if below"
+  - "max 1 trade per day"
+params:
+  range_end_utc:  {default: "06:00", grid: ["05:00", "06:00", "07:00"]}
+  buffer_usd:     {default: 0.50, grid: [0.0, 0.25, 0.5, 1.0]}
+  target_x_range: {default: 1.5, grid: [0.75, 1.0, 1.5, 2.0]}
+  stop_mode:      {default: opposite, grid: [opposite, midpoint]}
+expected_frequency: "~0.8 per day"
+claimed: "none verified (vendor backtests only)"
+assumptions:
+  - "range window 00:00-06:00 UTC chosen (vendors use 22:00-05:00 GMT or 03:00-06:00 server time)"
+  - "order cancel time 12:00 and flat time 16:00 UTC invented"
+  - "300-2000 points mapped to 3-20 USD assuming 1 point = 0.01"
+  - "buffer default invented"
+sources:
+  - https://www.mql5.com/en/blogs/post/777094
+  - https://www.mql5.com/en/code/75586
+  - https://www.mql5.com/en/market/product/166774
+  - https://www.mql5.com/fr/market/product/176400
+  - https://www.mql5.com/fr/market/product/169819
+  - https://ctrader.com/products/3918
+notes: >
+  The most widely sold gold EA archetype across MQL5 and cTrader. Not in the tested registry (T7 tested
+  momentum/fade at scheduled anchors, not a range-defined OCO breakout). Failure mode: London open
+  stop-hunts both sides; the range-width filter and buffer are the key parameters.
+---
+id: marketplaces-asian-range-fakeout-h1
+name: Asian range failed-breakout fade (H1)
+mechanism: structure
+timeframe_signal: 1h
+session: "range 00:00-06:00 UTC; signals 06:00-17:00 UTC"
+entry:
+  long:  "an H1 bar closed below AsianLow, and a later H1 bar closes back inside the range (close > AsianLow) -> buy at that close"
+  short: "an H1 bar closed above AsianHigh, and a later H1 bar closes back inside the range (close < AsianHigh) -> sell at that close"
+  order: market
+stop: "extreme of the excursion outside the range + 0.2*ATR14(H1)"
+target: "opposite side of the Asian range (or 2R, whichever first)"
+time_exit: "20:00 UTC"
+filters: ["max 1 trade per day", "skip if the opposite side of the range was also broken first"]
+params:
+  stop_buffer_atr: {default: 0.2, grid: [0.0, 0.2, 0.5]}
+  target_mode:     {default: opposite_side, grid: [midpoint, opposite_side, "2R"]}
+  max_bars_outside: {default: 3, grid: [1, 2, 3, 5]}
+expected_frequency: "~2-3 per week"
+claimed: "none"
+assumptions:
+  - "Asian session hours, stop, target, time exit and max_bars_outside are researcher choices; the listing only gives close-outside then close-back-inside, trade opposite"
+sources:
+  - https://www.tradingview.com/script/8Iv42BDE-Gold-H1-Breakout-Failure-V11-0
+notes: >
+  Materially different from T4 (sub-5s sweeps of 15/30-min levels): H1 bar closes, session-range level,
+  hours-long holding. Natural mirror of the OCO breakout card; test both on the same days.
+---
+id: marketplaces-taylor-sweep-1m
+name: Asian/prior-day level sweep reversal with SuperTrend + VWAP reclaim (1m)
+mechanism: structure
+timeframe_signal: 1m
+session: "06:00-17:00 UTC (London 06-13 sweeps, NY 13-17 continuation)"
+entry:
+  long:  "low(1m) < min(AsianLow, PDL) AND close(1m) > that level AND lower wick >= 50% of bar range AND SuperTrend(10,3, 1m) bullish AND (close > session VWAP OR close > EMA20)"
+  short: "high(1m) > max(AsianHigh, PDH) AND close(1m) < that level AND upper wick >= 50% of bar range AND SuperTrend bearish AND (close < VWAP OR close < EMA20)"
+  order: market
+stop: "6.00 USD (script default 6-point stop) or sweep extreme + 0.5 USD, param"
+target: "3R, scaled 33/33/34 at 1R, 2R, 3R"
+time_exit: "17:00 UTC (end of NY window)"
+filters: ["Asian range 00:00-05:00 UTC", "one trade per level per day"]
+params:
+  stop_usd:     {default: 6.0, grid: [3.0, 4.5, 6.0, 8.0]}
+  final_r:      {default: 3.0, grid: [1.5, 2.0, 3.0]}
+  wick_frac:    {default: 0.5, grid: [0.3, 0.5, 0.6]}
+  st_params:    {default: "10,3", grid: ["7,2", "10,3", "14,3"]}
+expected_frequency: "~0.5-1 per day"
+claimed: "none"
+assumptions:
+  - "wick fraction threshold and SuperTrend(10,3) settings invented"
+  - "level = Asian extreme or PDL/PDH, whichever is swept first"
+sources:
+  - https://es.tradingview.com/scripts/asian
+  - https://jp.tradingview.com/scripts/taylor
+  - https://vn.tradingview.com/scripts/usdollar
+notes: >
+  Differs from T1/T4 (sub-5s spark/sweep at 15/30-min levels, order-flow features): uses daily/session
+  levels, 1m bar closes and requires trend (SuperTrend) plus VWAP agreement, so it is a confirmed
+  reversal, not a spike fade. Risk: the SuperTrend-bullish requirement right after a sweep down is
+  rare; it may reduce to a late entry.
+---
+id: marketplaces-ny-orb-15m-5m
+name: Gold New York opening range breakout (15m range, 5m close entry)
+mechanism: breakout
+timeframe_signal: 5m
+session: "range 09:30-09:45 America/New_York; entries until 12:00 NY"
+entry:
+  long:  "first 5m close > ORhigh after 09:45 NY"
+  short: "first 5m close < ORlow after 09:45 NY"
+  order: market
+stop: "0.5 * OR width from entry (range midpoint)"
+target: "2.0 * OR width"
+time_exit: "15:00 NY (always before 21:00 UTC)"
+filters: ["max 1 trade per day", "optional: skip if OR width > 1.5*ATR14(15m)"]
+params:
+  or_minutes: {default: 15, grid: [5, 15, 30]}
+  target_x:   {default: 2.0, grid: [1.0, 1.5, 2.0, 3.0]}
+  stop_x:     {default: 0.5, grid: [0.5, 1.0]}
+expected_frequency: "~1 per day"
+claimed: "third-party MT5 3-year test: +49.4%, PF 1.68, WR 46.8%, maxDD 5.9%, 169 trades (seller figures)"
+assumptions: ["entry cutoff 12:00 NY, flat time 15:00 NY, and OR-width filter invented"]
+sources:
+  - https://kr.tradingview.com/script/oYW9gdag-Gold-ORB-Strategy-15-min-Range-5-min-Entry
+  - https://calyx.duckdns.org/eas/orb-volume-profile
+  - https://ctrader.com/products/1705
+notes: >
+  T8 tested first-minute NYSE momentum and T7 anchor momentum; this is a 15-minute range breakout
+  confirmed by a 5m close with a range-scaled bracket, a different trigger and holding period. Still
+  shares the NYSE-open anchor, so expect correlated weakness; worth one test because it is the most
+  common gold ORB template.
+---
+id: marketplaces-london-range-ny-breakout-30m
+name: London session range breakout in first 90 min of New York (30m)
+mechanism: session_time
+timeframe_signal: 30m
+session: "London range 07:00-12:00 UTC; entries 12:30-14:00 UTC (first three NY 30m bars)"
+entry:
+  long:  "30m close > LondonHigh during the first three 30m bars of NY AND close not above upper BB(20,2) zone"
+  short: "30m close < LondonLow during the first three 30m bars of NY AND close not below lower BB(20,2) zone"
+  order: market
+stop: "opposite London extreme"
+target: "1R or outer Bollinger Band (20,2), whichever first"
+time_exit: "20:00 UTC"
+filters: ["max 1 trade per day", "skip if London range > 2.5*ATR14(30m) (stop too wide)"]
+params:
+  ny_bars:      {default: 3, grid: [2, 3, 4]}
+  target_r:     {default: 1.0, grid: [1.0, 1.5, 2.0]}
+  london_start: {default: "07:00", grid: ["06:00", "07:00", "08:00"]}
+expected_frequency: "~3 per week"
+claimed: "none"
+assumptions:
+  - "London hours, NY start 12:30 UTC, BB(20,2) zone interpretation and range-size filter are researcher choices; script describes 'red/green zone' skip rules without exact definition"
+sources:
+  - https://it.tradingview.com/script/DWZ43m2q-GOLD-30MIN-ALLINONE
+notes: >
+  Uses a whole London-session range rather than a scheduled minute; stop is wide, so the edge depends
+  on NY continuation days. Check DST shifts on NY open.
+---
+id: marketplaces-pdh-pdl-oco-breakout
+name: Previous-day high/low OCO breakout, one trade per day
+mechanism: breakout
+timeframe_signal: 5m
+session: "orders placed 00:05 UTC, active until 18:00 UTC"
+entry:
+  long:  "buy stop at PDH (+ buffer)"
+  short: "sell stop at PDL (- buffer); cancel the other on fill"
+  order: stop
+stop: "1.0 * ATR14(H1) from entry, or daily midpoint, param"
+target: "2R"
+time_exit: "20:00 UTC"
+filters: ["no trading on weekend sessions", "skip if price already outside PDH/PDL at placement", "max 1 trade per day"]
+params:
+  buffer_usd: {default: 0.3, grid: [0.0, 0.3, 1.0]}
+  stop_atr:   {default: 1.0, grid: [0.5, 1.0, 1.5]}
+  target_r:   {default: 2.0, grid: [1.0, 1.5, 2.0, 3.0]}
+  require_close_beyond: {default: false, grid: [false, true]}
+expected_frequency: "~0.6 per day"
+claimed: "none"
+assumptions: ["stop, target and active hours invented; listings only define stop orders at PDH/PDL, OCO, 1 trade/day"]
+sources:
+  - https://www.mql5.com/ja/market/product/188195
+  - https://www.mql5.com/en/market/product/145590
+  - https://www.mql5.com/ko/job/251869
+notes: >
+  Variant with require_close_beyond=true follows the stricter close-based spec in the MQL5 job post
+  (on 15m closes here, to stay intraday). Pairs with the Taylor-sweep card (same levels, opposite thesis).
+---
+id: marketplaces-bb-pinbar-fade-m5
+name: Bollinger close-outside + pin bar fade, H1 EMA200 aligned (M5)
+mechanism: mean_reversion
+timeframe_signal: 5m
+session: "07:00-20:00 UTC"
+entry:
+  long:  "prior 5m bar closed below lower BB(20,2) AND current completed bar is a bullish pin (lower wick >= 2*body, close in top third) AND close(H1) > EMA200(H1)"
+  short: "prior 5m bar closed above upper BB(20,2) AND bearish pin AND close(H1) < EMA200(H1)"
+  order: market
+stop: "pin bar extreme + 0.3 USD"
+target: "BB middle band (20 SMA), or 1.5R param"
+time_exit: "60 min after entry or 20:45 UTC"
+filters: ["one position at a time", "skip if spread > 0.4 USD"]
+params:
+  bb_dev:      {default: 2.0, grid: [2.0, 2.5, 3.0]}
+  wick_body:   {default: 2.0, grid: [1.5, 2.0, 3.0]}
+  target_mode: {default: middle, grid: [middle, "1.0R", "1.5R"]}
+expected_frequency: "~1 per day"
+claimed: "PF 3.75 on 33 trades, Nov 2025-Apr 2026, 28 longs (seller backtest)"
+assumptions: ["pin-bar geometry, session, stop buffer, time exit invented"]
+sources:
+  - https://www.mql5.com/en/market/product/174110
+  - https://www.mql5.com/tr/market/product/185384
+  - https://www.mql5.com/en/market/product/181332
+notes: >
+  Seller sample is tiny and long-biased in a gold bull run; the EMA200 filter means it is really a
+  buy-the-dip-in-uptrend system. Check symmetry and the post-June-2026 regime explicitly.
+---
+id: marketplaces-round20-level-fade
+name: $20 round-number rejection fade
+mechanism: structure
+timeframe_signal: 15m
+session: "06:00-20:00 UTC"
+entry:
+  long:  "price falls to within 1.00 USD above a multiple of 20 USD with momentum (close-to-close drop over last 4 bars >= 1*ATR14(15m)) -> buy limit at level + 0.50"
+  short: "price rises to within 1.00 USD below a multiple of 20 with momentum -> sell limit at level - 0.50"
+  order: limit
+stop: "2.50 USD beyond the round level (author found no effect by $3)"
+target: "1.5 * stop distance, or 4h time exit"
+time_exit: "4 hours after entry or 20:45 UTC"
+filters: ["max 1 trade per level per day", "skip 30 min around scheduled US data", "first touch of the level today only"]
+params:
+  level_step: {default: 20, grid: [10, 20, 25, 50]}
+  stop_beyond: {default: 2.5, grid: [1.5, 2.5, 3.5]}
+  momentum_atr: {default: 1.0, grid: [0.5, 1.0, 1.5]}
+  target_r:   {default: 1.5, grid: [1.0, 1.5, 2.0]}
+expected_frequency: "~1 per day"
+claimed: "MQL5 blog: on 8.5y H1 data, momentum approaches to $20 levels reverse more often than control; effect ~$1 wide, gone by $3; absent on FX majors"
+assumptions:
+  - "author's study was a statistic on H1, not a strategy; all entry/stop/target rules and the 15m momentum definition are researcher-built"
+  - "limit orders: note T5 found limit entries suffer adverse selection — also test market-on-touch"
+sources:
+  - https://www.mql5.com/en/blogs/post/775454
+  - https://www.mql5.com/en/forum/493180/57798605
+  - https://jp.tradingview.com/script/Ggfalp0D-Big-Round-Number-for-GOLD-XAU-USD
+notes: >
+  Only card here backed by a (self-published) statistical test with a control. Grid level_step to see
+  if $20 is special versus $10/$25/$50. Gold price level has risen a lot, so $20 is now a smaller
+  fraction of price than in early sample years.
+---
+id: marketplaces-vwap-cross-mtf-ema-5m
+name: VWAP cross with H1/H4 EMA trend filter (5m)
+mechanism: vwap
+timeframe_signal: 5m
+session: "07:00-19:00 UTC"
+entry:
+  long:  "5m close crosses above session VWAP AND close(H1) > EMA50(H1) AND close(H4) > EMA50(H4)"
+  short: "5m close crosses below VWAP AND close(H1) < EMA50(H1) AND close(H4) < EMA50(H4)"
+  order: market
+stop: "1.5 * ATR14(5m)"
+target: "TP1 1.5*ATR (50%), TP2 3.0*ATR (rest), stop to breakeven after TP1"
+time_exit: "20:45 UTC"
+filters: ["max 3 trades per day", "no new entry within 6 bars of last exit"]
+params:
+  stop_atr:  {default: 1.5, grid: [1.0, 1.5, 2.0]}
+  tp2_atr:   {default: 3.0, grid: [2.0, 3.0, 4.0]}
+  ema_len:   {default: 50, grid: [20, 50, 100, 200]}
+  vwap_anchor: {default: "00:00 UTC", grid: ["00:00 UTC", "07:00 UTC", "13:30 UTC"]}
+expected_frequency: "~1-3 per day"
+claimed: "none"
+assumptions: ["EMA lengths, VWAP anchor, session, re-entry spacing and TP1 split invented; listing gives VWAP break + H1/H4 EMA filters + 1.5x/3x ATR"]
+sources:
+  - https://it.tradingview.com/script/pZRLoihP-XAUUSD-Ultra
+  - https://de.tradingview.com/script/VrdATmT4-PowerTrend-Pro-Strategy-Gold-Optimized/
+  - https://in.tradingview.com/script/uXwRMzy9-RSI-Scalping-Gold-XAUUSD-v5
+notes: "Trend-continuation via VWAP; whipsaws on range days. vwap_anchor grid tests session-anchored VWAP."
+---
+id: marketplaces-ema-pullback-adx-m15
+name: EMA20/50 + ADX trend, pullback to EMA20 (M15)
+mechanism: momentum
+timeframe_signal: 15m
+session: "07:00-19:00 UTC"
+entry:
+  long:  "EMA20 > EMA50 (15m) AND ADX14 > 25 AND close(H1) > EMA50(H1) AND low touches EMA20 AND bar closes back above EMA20"
+  short: "EMA20 < EMA50 AND ADX14 > 25 AND close(H1) < EMA50(H1) AND high touches EMA20 AND close back below EMA20"
+  order: market
+stop: "swing extreme of pullback - 0.5*ATR14, or 1.5*ATR14 (whichever farther)"
+target: "trail 2*ATR14 after +1R; breakeven at 1R; or fixed 3*ATR"
+time_exit: "20:45 UTC"
+filters: ["max 2 trades per day", "skip if ATR14(15m) < 20-day median (dead market)"]
+params:
+  adx_min:    {default: 25, grid: [20, 25, 30]}
+  stop_atr:   {default: 1.5, grid: [1.0, 1.5, 2.0]}
+  exit_mode:  {default: trail, grid: [trail, "fixed_3atr"]}
+expected_frequency: "~1 per day"
+claimed: "none"
+assumptions: ["ADX threshold, ATR-dead-market filter, H1 EMA length, trail distance invented; stop/target formulas taken from MQL5 job specs, not tested code"]
+sources:
+  - https://www.mql5.com/fr/market/product/188049
+  - https://www.mql5.com/en/job/251720
+  - https://www.mql5.com/ru/job/250597
+notes: "Generic trend-pullback; included as the intraday trend baseline the other cards should beat."
+---
+id: marketplaces-prev-candle-sweep-m15
+name: Previous-candle liquidity sweep and reclaim (M15)
+mechanism: structure
+timeframe_signal: 15m
+session: "07:00-17:00 UTC"
+entry:
+  long:  "prev 15m bar bearish AND low < prev low AND high <= prev high AND close > prev low AND close > open AND close > EMA200(15m)"
+  short: "prev bar bullish AND high > prev high AND low >= prev low AND close < prev high AND close < open AND close < EMA200(15m)"
+  order: market
+stop: "sweep bar extreme +/- 0.2 USD buffer"
+target: "1.5R"
+time_exit: "4 bars after entry or 20:45 UTC"
+filters: ["skip if sweep bar range > 2*ATR14(15m)", "max 2 trades per day"]
+params:
+  target_r:   {default: 1.5, grid: [1.0, 1.5, 2.0]}
+  ema_filter: {default: true, grid: [true, false]}
+  max_bars:   {default: 4, grid: [2, 4, 8]}
+expected_frequency: "~1-2 per day"
+claimed: "none"
+assumptions: ["session, range filter, buffer size, time exit invented; script lists RR, SL buffer, EMA200 toggle and a session filter without values"]
+sources:
+  - https://www.tradingview.com/script/8Evzyktw/
+  - https://it.tradingview.com/script/6dpq9Hjc-Gold-15m-Trend-S-R-Liquidity-Sweep-RR-1-2
+notes: >
+  15m-bar swing-failure, trend-aligned. Different from T4 (sub-5s, 15/30-min levels, counter-spike):
+  bar-close pattern with EMA200 bias. Cheap to test.
+---
+id: marketplaces-bbkc-squeeze-breakout-15m
+name: Bollinger-inside-Keltner squeeze release breakout (15m)
+mechanism: volatility
+timeframe_signal: 15m
+session: "06:00-18:00 UTC"
+entry:
+  long:  "squeeze on (BB(20,2) inside KC(20,1.5*ATR)) for >= 6 bars, then first bar with squeeze off AND close > upper BB AND BB-midline slope > 0"
+  short: "same, close < lower BB AND midline slope < 0"
+  order: market
+stop: "opposite side of the squeeze-period range (high/low of squeeze bars)"
+target: "trail at KC midline (EMA20) close-through, or 2R"
+time_exit: "20:45 UTC"
+filters: ["max 2 trades per day"]
+params:
+  min_squeeze_bars: {default: 6, grid: [4, 6, 10]}
+  kc_mult:          {default: 1.5, grid: [1.0, 1.5, 2.0]}
+  exit_mode:        {default: trail, grid: [trail, "2R"]}
+expected_frequency: "~0.5 per day"
+claimed: "none"
+assumptions: ["all thresholds, slope filter use and exits are researcher-defined (classic TTM-style squeeze); gold scripts only describe squeeze-to-breakout qualitatively"]
+sources:
+  - https://id.tradingview.com/script/0ytEVtgd
+  - https://tr.tradingview.com/scripts/search/Volatility/page-36
+notes: "Volatility-regime trigger independent of clock time; useful diversifier versus the session cards."

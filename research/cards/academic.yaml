@@ -1,0 +1,368 @@
+id: academic-rest-of-day-last30-momentum
+name: Rest-of-day return predicts last 30 min before COMEX settlement (hedging-demand intraday momentum)
+mechanism: momentum
+timeframe_signal: 1m
+session: "13:00-13:30 America/New_York (17:00-17:30 UTC in EDT, 18:00-18:30 UTC in EST)"
+entry:
+  long:  "at 13:00 NY time: r_rod = ln(price 13:00 NY / price 18:00 NY previous day) > +k * sigma_rod, where sigma_rod = stdev of r_rod over last 60 days"
+  short: "at 13:00 NY time: r_rod < -k * sigma_rod"
+  order: market
+stop: "2.5 * ATR14(1m) at entry (disaster stop only; trade is meant to be time-exited)"
+target: "none (time exit)"
+time_exit: "13:30 NY time (COMEX gold settlement), with variant to hold until 20:55 UTC"
+filters:
+  - "skip if r_rod magnitude below k*sigma_rod (k default 0.5)"
+  - "skip US half-days / holidays"
+  - "optional: only on days where realized vol 18:00-13:00 NY > 60-day median (paper: effect stronger on volatile days)"
+params:
+  k:              {default: 0.5, grid: [0.0, 0.25, 0.5, 1.0]}
+  signal_end_ny:  {default: "13:00", grid: ["12:30", "13:00"]}
+  exit_ny:        {default: "13:30", grid: ["13:30", "14:00", "16:55 (=20:55 UTC EDT)"]}
+  vol_filter:     {default: false, grid: [false, true]}
+expected_frequency: "~0.5-1 per day (depends on k)"
+claimed: "Baltussen et al. (JFE 2021): last-30-min return positively predicted by rest-of-day return across >60 futures incl. commodities, 1974-2020; economically and statistically significant, reverts over next days"
+assumptions:
+  - "Paper uses each contract's own close; I map gold's close to the 13:30 NY COMEX settlement because that is when hedging/settlement flow concentrates"
+  - "k threshold, sigma normalisation, disaster stop and 20:55 UTC variant are researcher choices"
+sources:
+  - https://pure.eur.nl/en/publications/hedging-demand-and-market-intraday-momentum/
+  - https://alphaarchitect.com/hot-topic-does-gamma-hedging-actually-affect-stock-prices/
+  - https://www3.nd.edu/~zda/intramom.pdf
+notes: "Differs from T7 (which traded short reactions around the COMEX close anchor): the predictor here is the whole ~19h rest-of-day return, not the move around the anchor. Mechanism (gamma hedging of options/leveraged ETFs, e.g. GLD/NUGT rebalancing near close) is plausible for gold. Edge per trade is small; spread cost is the main risk. Test both the 13:30 settlement and the 21:00 UTC cut-off as 'close'."
+---
+id: academic-noise-area-momentum
+name: Noise-area breakout intraday momentum with VWAP trailing stop (Zarattini-Aziz-Barbon adapted to XAUUSD)
+mechanism: momentum
+timeframe_signal: 30m
+session: "07:00-20:55 UTC"
+entry:
+  long:  "evaluated at each 30m bar close from 07:30 UTC: close > upper_band(t) where upper_band(t) = O_anchor * (1 + sigma_t); O_anchor = price at 07:00 UTC; sigma_t = mean over last 14 days of |price(t)/price(07:00) - 1| at the same time of day t"
+  short: "close < lower_band(t) = O_anchor * (1 - sigma_t)"
+  order: market
+stop: "trailing: long exits when 30m close < max(upper_band(t), session VWAP from 07:00); short exits when close > min(lower_band(t), VWAP)"
+target: "none (trailing stop / time exit)"
+time_exit: "20:55 UTC"
+filters:
+  - "position size = target_daily_vol / (14-day realized daily vol), capped at max leverage"
+  - "may flip direction if opposite band is crossed; max 3 entries per day"
+  - "optional gap adjustment: upper anchor = max(O_anchor, prior 21:00 close), lower = min(...), as in the paper"
+params:
+  anchor_utc:     {default: "07:00", grid: ["00:00", "07:00", "13:30"]}
+  lookback_days:  {default: 14, grid: [10, 14, 20]}
+  band_mult:      {default: 1.0, grid: [0.75, 1.0, 1.25, 1.5]}
+  check_every:    {default: "30m", grid: ["15m", "30m", "60m"]}
+  target_vol:     {default: 0.02, grid: [0.01, 0.02, 0.03]}
+expected_frequency: "~0.5-1.5 entries per day"
+claimed: "SPY 2007-2024: 1,985% total return net of costs, 19.6% annualised, Sharpe 1.33 (authors). Not validated on gold."
+assumptions:
+  - "Original anchors at the US cash open; London open anchor for gold is researcher choice"
+  - "Translating the SPY session into a 07:00-20:55 UTC gold session is a researcher choice"
+sources:
+  - https://ideas.repec.org/p/chf/rpseri/rp2497.html
+  - https://www.sfi.ch/de/publications/n-24-97-beat-the-market-an-effective-intraday-momentum-strategy-for-s-p500-etf-spy
+  - https://bearbulltraders.com/wp-content/uploads/2024/08/Money_Show_Final.pdf
+notes: "Time-of-day-specific volatility bands make breakouts comparable across sessions (gold vol is very uneven across the day). Different from T8 (first-minute NYSE momentum): hold time hours, bands adapt to time of day. Failure mode: range-bound regimes (e.g. 2026 tight range noted by CME) produce whipsaw; the vol-scaled sizing reduces but does not remove it."
+---
+id: academic-first-hh-last-hh-comex
+name: First half-hour of COMEX day session predicts last half-hour (Gao-Han-Li-Zhou on gold)
+mechanism: momentum
+timeframe_signal: 1m
+session: "08:20-08:50 NY signal, 13:00-13:30 NY trade (12:20/17:00 UTC EDT; 13:20/18:00 UTC EST)"
+entry:
+  long:  "at 13:00 NY: r1 = return 08:20->08:50 NY > 0 AND (optional) r_mid = return 08:50->13:00 NY has same sign"
+  short: "at 13:00 NY: r1 < 0 (and optionally r_mid < 0)"
+  order: market
+stop: "2.5 * ATR14(1m) disaster stop"
+target: "none (time exit)"
+time_exit: "13:30 NY"
+filters:
+  - "trade only if |r1| > 60-day median |r1| (paper: stronger on high-volatility / high-volume days)"
+  - "variant: only on major macro days (NFP, CPI, FOMC day), where paper finds effect strongest"
+params:
+  first_window:   {default: "08:20-08:50 NY", grid: ["08:20-08:50 NY", "07:00-07:30 UTC", "00:00-00:30 UTC (prev Globex reopen 18:00-18:30 NY)"]}
+  mid_confirm:    {default: false, grid: [false, true]}
+  vol_filter_pct: {default: 50, grid: [0, 50, 75]}
+expected_frequency: "~0.5 per day"
+claimed: "SPY 1993-2013: R2 ~2%; long/short last half-hour by first half-hour sign gave 6.3% gross annualised vs -0.5% buy-all-last-half-hours (CXO summary). Chinese copper/steel futures show same effect (Jin et al.)"
+assumptions:
+  - "Mapping 'first half-hour' to the COMEX 08:20 ET open (gold trades ~23h, so 'open' is ambiguous)"
+  - "vol filter percentile and disaster stop are researcher choices"
+sources:
+  - https://alphaarchitect.com/2014/08/attention-prop-traders-the-first-half-hour-of-trading-predicts-the-last-half-hour/
+  - https://cxoadvisory.com/calendar-effects/first-and-last-half-hours-of-trading-linked
+  - https://hull-repository.worktribe.com/output/3295550
+  - https://ideas.repec.org/a/eee/finlet/v58y2023ipas154461232300394x.html
+notes: "Distinct from T7: T7 traded continuation/reversal immediately after the COMEX open; here the open's sign is used ~4.5h later. Chinese metals evidence shows the 'informative' first window moves when trading hours change (night session became predictor), so test several anchor windows. Low R2 means costs dominate; use tight-spread hours only."
+---
+id: academic-asian-range-orb-volstate
+name: London breakout of Asian range, traded only in high-volatility states (Lundström volatility-state ORB)
+mechanism: volatility
+timeframe_signal: 5m
+session: "07:00-20:55 UTC"
+entry:
+  long:  "buy stop at Asian high (00:00-07:00 UTC) + 0.05*ATR14(D1), active 07:00-11:00 UTC, only if vol_state == high"
+  short: "sell stop at Asian low - 0.05*ATR14(D1), same window and filter"
+  order: stop
+stop: "midpoint of Asian range, capped at 0.6*ATR14(D1)"
+target: "2.0 * risk (R)"
+time_exit: "20:55 UTC"
+filters:
+  - "vol_state = high if yesterday's realized vol (sum of squared 5m returns, 00:00-21:00 UTC) is in the top tercile of the trailing 250-day distribution; also test 'medium+high'"
+  - "skip if Asian range > 1.0*ATR14(D1) or < 0.2*ATR14(D1)"
+  - "one trade per day, OCO"
+params:
+  vol_tercile:    {default: "top", grid: ["all", "mid+top", "top"]}
+  asian_window:   {default: "00:00-07:00", grid: ["23:00-06:00", "00:00-07:00", "01:00-07:00"]}
+  target_r:       {default: 2.0, grid: [1.0, 1.5, 2.0, 2.5]}
+  entry_cutoff:   {default: "11:00", grid: ["09:00", "11:00", "13:00"]}
+expected_frequency: "~0.3 per day (only high-vol days)"
+claimed: "Lundström: ORB return difference between highest and lowest vol states ~200 bp/day crude oil, ~150 bp/day S&P 500. Retail MQL5 XAUUSD London breakout 2023-2026: PF ~1.37, 2026 OOS PF 1.61 on 157 trades (seller/blogger backtest)"
+assumptions:
+  - "Asian range definition, buffer, stop and 2R target are researcher choices adapted from retail implementations"
+  - "Using prior-day realized vol tercile as 'volatility state' is my operationalisation of Lundström's states"
+sources:
+  - https://ideas.repec.org/p/hhs/umnees/0861.html
+  - https://ideas.repec.org/a/eee/finlet/v10y2013i1p27-33.html
+  - https://www.mql5.com/en/blogs/post/777540
+notes: "The academic contribution is the volatility-state filter; plain Asian-range breakouts are likely covered by other lanes. Gold's volatility clusters strongly (Batten & Lucey), so prior-day vol is a usable state proxy. Failure: high-vol news reversals."
+---
+id: academic-overreaction-fade-volnorm
+name: Fade vol-normalised 30-minute overreactions outside news windows
+mechanism: mean_reversion
+timeframe_signal: 5m
+session: "07:00-20:00 UTC"
+entry:
+  long:  "z = (close - close 30 min ago) / (sigma_30m_tod * close) < -z_th, where sigma_30m_tod = stdev of 30-min returns at the same time of day over last 60 days; enter on first 5m bar that closes up after the trigger"
+  short: "z > +z_th; enter on first 5m bar that closes down"
+  order: market
+stop: "extreme of the move + 0.25 * move size"
+target: "50% retracement of the 30-min move"
+time_exit: "90 min after entry or 20:55 UTC"
+filters:
+  - "skip if a tier-1 scheduled US release (NFP, CPI, PPI, retail sales, ISM, FOMC) occurred within the prior 60 min"
+  - "skip if daily realized vol regime is top decile (trend days)"
+  - "max 2 trades per day"
+params:
+  z_th:           {default: 3.0, grid: [2.5, 3.0, 3.5, 4.0]}
+  window_min:     {default: 30, grid: [15, 30, 60]}
+  retrace:        {default: 0.5, grid: [0.382, 0.5, 0.618]}
+  max_hold_min:   {default: 90, grid: [60, 90, 180]}
+expected_frequency: "~2-4 per week"
+claimed: "Borgards et al.: intraday overreactions common in 20 commodity futures, precious metals more than base metals/softs; Kim et al. 2003: gold/silver reversals larger after large shocks, high-vol days, and after negative moves"
+assumptions:
+  - "z-score definition, confirmation bar, stop/target and news exclusion are researcher choices"
+sources:
+  - https://pmc.ncbi.nlm.nih.gov/articles/PMC9759686
+  - https://scholar.kyobobook.co.kr/article/detail/4010023856344
+  - https://researchwith.montclair.edu/en/publications/intraday-price-reversals-in-the-us-stock-index-futures-market-a-1/
+notes: "Distinct from T1-T5 (sub-5-second spikes/sweeps): horizon is 15-60 min, normalised by time-of-day volatility, and news shocks are excluded (information-driven moves continue). Grant et al. show index-futures reversals shrink after costs, so cost realism is key. Asymmetry: consider long-only after drops."
+---
+id: academic-asian-drift-adaptive
+name: Adaptive Asian-hours long drift (hat-shaped intraday seasonality)
+mechanism: session_time
+timeframe_signal: 1h
+session: "00:00-06:30 UTC"
+entry:
+  long:  "at 00:05 UTC buy if the trailing 60-day mean of the 00:00-06:30 UTC session return > 0 AND its t-stat > t_min"
+  short: "at 00:05 UTC sell if the trailing 60-day mean < 0 AND t-stat < -t_min (symmetric adaptive version)"
+  order: market
+stop: "1.0 * ATR14(D1)"
+target: "none (time exit)"
+time_exit: "06:30 UTC (before London open)"
+filters:
+  - "skip Monday 00:00 (weekend gap) as a variant"
+  - "skip if spread at 00:05 UTC > 2x median (rollover spread widening around 21:00-22:00 UTC is avoided by the 00:05 start)"
+params:
+  lookback_days:  {default: 60, grid: [20, 60, 120, 250]}
+  t_min:          {default: 1.0, grid: [0.0, 1.0, 1.5]}
+  session_end:    {default: "06:30", grid: ["05:00", "06:30", "07:30"]}
+expected_frequency: "~0.6 per day"
+claimed: "CBS thesis: gold appreciates robustly in eastern hours and depreciates the rest of the day; 2026 commentary: gold +12.9% in Asian hours vs -15% in North American hours in H1 2026 (unverified)"
+assumptions:
+  - "Adaptive sign rule with t-stat gate is a researcher addition to address regime dependence"
+  - "Session boundaries are researcher choices"
+sources:
+  - https://research.cbs.dk/en/studentProjects/gold-price-dynamics-around-the-clock/
+  - https://www.moneymetals.com/news/2026/07/12/a-strange-dichotomy-gold-up-on-the-year-in-asian-markets-down-big-in-the-west-005059
+  - https://www.merlin.uzh.ch/publication/show/11299
+notes: "T7 tested short windows around the Tokyo open anchor; this is a whole-session carry of a slow-moving seasonal drift with an adaptive sign, which is materially different. Gold's day-part drift is driven by Asian physical demand vs Western selling and has flipped across years, hence the adaptive rule. Low trade-level edge, but low cost per unit of hold time."
+---
+id: academic-london-pmfix-short
+name: Short London open to PM fix, conditioned on Asian strength (overnight-high / day-reversal effect)
+mechanism: session_time
+timeframe_signal: 15m
+session: "07:00-15:00 London time (06:00/07:00-14:00/15:00 UTC)"
+entry:
+  long:  "variant only: if Asian-session return 00:00-07:00 UTC < -a * sigma_asia, buy at 07:00 London"
+  short: "at 07:00 London: Asian-session return 00:00-07:00 UTC > +a * sigma_asia (sigma = 60-day stdev of that return); sell"
+  order: market
+stop: "Asian session high + 0.25*ATR14(D1) (short) / Asian low - 0.25*ATR14(D1) (long)"
+target: "none (time exit)"
+time_exit: "15:00 London (LBMA PM auction); variant 20:55 UTC"
+filters:
+  - "a default 0.5; a=0 gives the unconditional Zurich-thesis version"
+  - "skip days with a tier-1 US release at 13:30 UTC as a variant (news overrides drift)"
+params:
+  a:              {default: 0.5, grid: [0.0, 0.5, 1.0, 1.5]}
+  exit:           {default: "15:00 London", grid: ["10:30 London (AM fix)", "15:00 London", "20:55 UTC"]}
+  direction_mode: {default: "fade", grid: ["fade", "follow"]}
+expected_frequency: "~0.3-1 per day"
+claimed: "Zurich MSc thesis: short London open->PM fix then long to next open beat buy-and-hold in every sub-period for gold and silver; Blose & Gondhalekar: COMEX gold overnight returns significantly positive, day returns negative (opening price 'too high'); Edgeful practitioner data 2024 suggests continuation instead"
+assumptions:
+  - "Conditioning on Asian return magnitude and the stop are researcher choices; the 'follow' variant exists because evidence on sign conflicts"
+sources:
+  - https://www.merlin.uzh.ch/publication/show/11299
+  - https://scholarworks.gvsu.edu/fsdg/975
+  - https://ideas.repec.org/a/spr/jecfin/v42y2018i3d10.1007_s12197-017-9403-0.html
+  - https://www.edgeful.com/blog/posts/overnight-continuation-trading-strategy
+  - https://www.fa-mag.com/news/study-shows-signs-of-bank-gold-price-manipulation-17114.html
+notes: "Differs from T7 (short windows around London open and PM fix): 8-hour hold conditioned on how far Asia ran. Post-2015 LBMA auction reform likely weakened the fix-dip component, so watch for regime decay; test by year."
+---
+id: academic-fomc-post-announcement-drift
+name: Post-FOMC 30-minute direction drift into the close
+mechanism: momentum
+timeframe_signal: 5m
+session: "FOMC statement time (14:00 NY = 18:00 UTC EDT / 19:00 UTC EST) to 20:55 UTC"
+entry:
+  long:  "on scheduled FOMC days: at statement+30min, r30 = return from statement-1min to statement+30min > +m * ATR14(5m)*sqrt(6)"
+  short: "r30 < -m * ATR14(5m)*sqrt(6)"
+  order: market
+stop: "price at statement-1min (pre-announcement level)"
+target: "none (time exit)"
+time_exit: "20:55 UTC"
+filters:
+  - "variant: wait until press conference start (statement+30min) and use statement->presser return as signal"
+  - "skip unscheduled/emergency meetings"
+params:
+  wait_min:       {default: 30, grid: [5, 15, 30, 60]}
+  m:              {default: 1.0, grid: [0.5, 1.0, 1.5]}
+  direction_mode: {default: "follow", grid: ["follow", "fade"]}
+expected_frequency: "8 per year"
+claimed: "No gold-specific evidence found; Lucca-Moench pre-FOMC drift is equities-only and largely disappeared after 2015 (Kurov et al.). E-mini study finds pre- and post-FOMC returns negatively related."
+assumptions:
+  - "Entire rule set is researcher-made; academic support is indirect (macro news strengthens intraday momentum per Gao et al.)"
+  - "Low sample size (~8/yr) means needs long history (2010+)"
+sources:
+  - https://www.skidmore.edu/economics/documents/KurovWolfeGilbert-TheDisappearingPre-FOMC-Announce-Drift-200914.pdf
+  - https://www.bostonfed.org/economic/conf/Macro-Finance-2012/presentations/lucca.pdf
+  - https://alphaarchitect.com/2014/08/attention-prop-traders-the-first-half-hour-of-trading-predicts-the-last-half-hour/
+notes: "FOMC is not among the T7 anchors (T7 covered 08:30/10:00 ET data). The press conference often reverses the statement move, hence the fade variant. Very low frequency; best used as an add-on module."
+---
+id: academic-macro-shock-15m-drift
+name: Tier-1 US data shock (NFP/CPI) 15-minute direction, held 1-4 hours, magnitude-gated
+mechanism: momentum
+timeframe_signal: 5m
+session: "08:30 NY release (12:30 UTC EDT / 13:30 UTC EST) to 20:55 UTC"
+entry:
+  long:  "NFP or CPI day only: at 08:45 NY, r15 = return 08:29->08:45 NY > +s * median |r15| of last 24 same-type releases"
+  short: "r15 < -s * median |r15|"
+  order: market
+stop: "08:29 NY pre-release price"
+target: "none (time exit)"
+time_exit: "hold_h hours after entry; hard exit 20:55 UTC; variant exit at 15:00 London (PM fix)"
+filters:
+  - "only NFP and CPI (largest gold impact per Cai et al. 2001 and Elder et al. 2011)"
+  - "skip if r15 sign reverses between 08:35 and 08:45 (whipsaw)"
+params:
+  s:              {default: 1.0, grid: [0.5, 1.0, 1.5, 2.0]}
+  hold_h:         {default: 1, grid: [0.5, 1, 2, 4]}
+  events:         {default: "NFP+CPI", grid: ["NFP", "CPI", "NFP+CPI"]}
+expected_frequency: "~24 per year"
+claimed: "Elder-Miao-Ramchander (JBF 2011): metal futures react swiftly and significantly, NFP largest, good economic news negative for gold. FXStreet: gold vs NFP surprise r ~ -0.54 at 15m and 1h, fading by 4h"
+assumptions:
+  - "Price-based shock proxy replaces consensus-surprise data; gating, entry delay and holding periods are researcher choices"
+sources:
+  - https://mountainscholar.org/handle/10217/206884
+  - https://ideas.repec.org/a/wly/jfutmk/v21y2001i3p257-278.html
+  - https://www.fxstreet.com/analysis/us-december-nonfarm-payrolls-preview-analyzing-gold-prices-reaction-to-nfp-surprises-202301050939
+notes: "Overlaps T7 (US data 08:30 anchor momentum/fade). Materially different only in that it is restricted to NFP+CPI, gated by release-specific shock size and held 1-4h rather than minutes. Run only if T7's 08:30 results are inspected first and showed directional continuation beyond 15 min; otherwise deprioritise."
+---
+id: academic-tsmom-daysession-volscaled
+name: Daily trend sign held intraday only, volatility-scaled, with semivariance reversal filter
+mechanism: momentum
+timeframe_signal: 1h
+session: "07:00-20:55 UTC"
+entry:
+  long:  "at 07:00 UTC: sign of EMA(20) - EMA(100) on daily closes (21:00 UTC) > 0 AND RS_share <= 0.6"
+  short: "EMA(20) - EMA(100) < 0 AND RS_share <= 0.6"
+  order: market
+stop: "1.5 * ATR14(1h) * sqrt(14) from entry (about one daily ATR)"
+target: "none (time exit)"
+time_exit: "20:55 UTC"
+filters:
+  - "RS_share = (realized semivariance against trend direction) / total realized variance over last 5 days from 5m returns; > 0.6 flags reversal risk, skip"
+  - "size = target_vol / realized vol (20-day, intraday 07:00-21:00 returns only)"
+params:
+  fast_slow:      {default: [20, 100], grid: [[10, 50], [20, 100], [50, 200]]}
+  rs_th:          {default: 0.6, grid: [0.5, 0.6, 0.7, 1.0]}
+  target_vol:     {default: 0.01, grid: [0.005, 0.01, 0.015]}
+expected_frequency: "~0.8 per day"
+claimed: "Liu-Lu-Li-Wang (JEF 2023): realized semivariance predicts commodity futures returns around TSMOM reversals, higher Sharpe than plain TSMOM, robust to vol scaling. Kim-Tse-Wald: much of TSMOM alpha comes from volatility scaling"
+assumptions:
+  - "Restricting a daily TSMOM signal to the 07:00-20:55 UTC window and the semivariance filter definition are researcher choices"
+sources:
+  - https://reading-clone.eprints-hosting.org/111035
+  - https://centaur.reading.ac.uk/111035/1/Anonymized%20manuscript-R1.pdf
+  - https://quantpedia.com/?p=637
+notes: "Gives the lane a slow-signal intraday strategy uncorrelated with event anchors. Note gold's overnight vs day split: if most trend return is earned in Asian hours, day-only holding loses it; test session_start 00:05 UTC as a variant."
+---
+id: academic-shfe-open-momentum
+name: Shanghai day-session open half-hour predicts rest of Asian session
+mechanism: momentum
+timeframe_signal: 5m
+session: "01:00-06:30 UTC"
+entry:
+  long:  "at 01:30 UTC: r = return 01:00->01:30 UTC (SHFE gold day open 09:00 Beijing) > +q * sigma_r (60-day stdev)"
+  short: "r < -q * sigma_r"
+  order: market
+stop: "price at 01:00 UTC (start of signal window)"
+target: "none (time exit)"
+time_exit: "06:30 UTC; variant 03:30 UTC (SHFE lunch break)"
+filters:
+  - "skip Chinese public holidays (SHFE closed)"
+  - "variant: also use SHFE night open 21:00 Beijing = 13:00 UTC, first half hour, held to 15:00 UTC"
+params:
+  q:              {default: 0.5, grid: [0.0, 0.5, 1.0]}
+  exit_utc:       {default: "06:30", grid: ["03:30", "05:00", "06:30"]}
+  anchor:         {default: "day_open_01:00", grid: ["day_open_01:00", "night_open_13:00"]}
+expected_frequency: "~0.5 per day"
+claimed: "Bouri-Ma-Xu-Zhou: first half-hour of Chinese metal futures (incl. gold/silver) predicts later returns; after night trading started the night-open half-hour became the predictor; market-timing strategy beat always-long"
+assumptions:
+  - "Transferring Chinese-futures intraday momentum to XAUUSD spot via the SHFE open time is a researcher assumption"
+  - "Thresholds and exits are researcher choices"
+sources:
+  - https://ideas.repec.org/a/eee/finlet/v58y2023ipas154461232300394x.html
+  - https://ideas.repec.org/a/eee/glofin/v64y2025ics1044028325000110.html
+  - https://acfr.aut.ac.nz/__data/assets/pdf_file/0008/686816/4a-Z-Ivy-Zhou.pdf
+notes: "Not among T7 anchors (T7 had Tokyo open 00:00 UTC). Chinese onshore premium/physical demand flows hit at the SHFE/SGE open. The night-open variant collides with 12:30/13:30 UTC US data; exclude data days for that variant."
+---
+id: academic-usd-residual-catchup
+name: Gold catch-up to sharp USD moves (EURUSD-implied residual reversion)
+mechanism: other
+timeframe_signal: 5m
+session: "07:00-20:00 UTC"
+entry:
+  long:  "res = r_XAU(30m) - beta * r_EURUSD(30m), beta = rolling 20-day OLS of 5m XAU on 5m EURUSD returns; if r_EURUSD(30m) > +2 sigma AND res < -1.5 sigma_res, buy XAU (gold lagged a USD sell-off)"
+  short: "if r_EURUSD(30m) < -2 sigma AND res > +1.5 sigma_res, sell XAU"
+  order: market
+stop: "1.5 * ATR14(5m) * sqrt(6)"
+target: "res returns to 0 (XAU move = beta * EURUSD move since signal start)"
+time_exit: "60 min after entry or 20:55 UTC"
+filters:
+  - "require rolling 20-day correlation(XAU,EURUSD) on 5m returns > 0.3"
+  - "skip 15 min around tier-1 US releases"
+params:
+  usd_z:          {default: 2.0, grid: [1.5, 2.0, 2.5]}
+  res_z:          {default: 1.5, grid: [1.0, 1.5, 2.0]}
+  window_min:     {default: 30, grid: [15, 30, 60]}
+  min_corr:       {default: 0.3, grid: [0.2, 0.3, 0.5]}
+expected_frequency: "~1-3 per week"
+claimed: "none; daily/weekly literature: gold-USD index correlation about -0.75 (2018), gold vs 10y TIPS about -0.8 historically but unstable; CXO finds UUP-GLD weekly relation coincident (no lead)"
+assumptions:
+  - "Entire rule is researcher-made; needs EURUSD (or DXY) 1m data aligned to XAUUSD"
+  - "Assumes intraday cross-asset adjustment is not instantaneous; evidence for a lead is weak"
+sources:
+  - https://www.lbma.org.uk/alchemist/issue-90/an-update-on-gold-real-interest-rates-and-the-dollar
+  - https://cxoadvisory.com/?p=21168
+  - https://www.marketpulse.com/?p=806288
+notes: "Speculative and last-ranked: the evidence says gold and USD move coincidentally, so any lag is likely only during liquidity gaps. Keep only if data is already available; correlation has weakened in 2023-2026 (geopolitical / central-bank buying), so the min_corr gate matters."

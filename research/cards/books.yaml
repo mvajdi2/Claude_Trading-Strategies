@@ -1,0 +1,379 @@
+# Lane 3: books and classic methods. Researched 2026-10-23. Not backtested.
+# Sessions in UTC: Asia 23:00-07:00, London 07:00-12:00, NY 12:00-21:00. Flat by 21:00 UTC.
+# "Day" = trading day 23:00 UTC (prev calendar day) to 21:00 UTC unless stated.
+# "Volume" means broker tick volume (spot XAUUSD has no central volume).
+---
+id: books-crabel-orb-stretch-london
+name: Crabel opening range breakout with stretch offset (London open), NR4/NR7 filtered
+mechanism: breakout
+timeframe_signal: 1m
+session: "07:00-12:00 UTC"
+entry:
+  long:  "price trades >= OR_high + stretch, where OR = 07:00-07:15 UTC high/low and stretch = mean over the last 10 days of min(H_lon - O_lon, O_lon - L_lon), with O_lon = 07:00 open and H_lon/L_lon = 07:00-12:00 high/low of that day"
+  short: "price trades <= OR_low - stretch (same definitions)"
+  order: stop
+stop: "opposite side of the opening range (OR_low for longs, OR_high for shorts); hard cap 1.5*ATR14(15m)"
+target: "none (time exit); variant: 1.0*(OR width + stretch)"
+time_exit: "12:00 UTC"
+filters:
+  - "only trade if the prior day (23:00-21:00) is NR4 or NR7 (range narrowest of last 4 / 7 days) - Crabel's compression condition"
+  - "OCO: first fill cancels the other side; max 1 trade per day"
+  - "skip if OR width > 1.0*ATR14(15m)*4"
+params:
+  or_minutes:      {default: 15, grid: [5, 15, 30]}
+  stretch_mult:    {default: 1.0, grid: [0.5, 1.0, 1.5, 2.0]}
+  stretch_lookback: {default: 10, grid: [5, 10, 20]}
+  nr_filter:       {default: "NR4", grid: ["none", "NR4", "NR7"]}
+expected_frequency: "~0.3-0.5 per day with NR4 filter; ~1 per day without"
+claimed: "none (Crabel's 1990 tables reported modest edges for US futures of that era)"
+assumptions:
+  - "Crabel defined stretch on the day session open; we re-anchor it to the 07:00 UTC London open and measure noise inside 07:00-12:00"
+  - "15-minute OR, 12:00 time exit, ATR-based stop cap and OR width filter chosen by researcher"
+  - "NR4/NR7 computed on 23:00-21:00 UTC daily bars"
+sources:
+  - https://nexusfi.com/a/strategies/opening-range-breakout
+  - https://store.traders.com/-v06-c09-playing-pdf.html
+  - https://oxfordstrat.com/trading-strategies/narrow-range/
+  - https://www.luxalgo.com/library/concept/nr4-nr7-narrow-range-bars.md
+notes: "How this differs from T7 (London-open momentum): the trigger is a breakout of the opening range plus a volatility-scaled noise buffer, not a fixed-time return sign, and it only fires after a compression day. Stretch filters out the opening whipsaw that killed the fixed-time anchors. Failure mode: gold often makes a London false break and then reverses in NY; the 12:00 exit limits exposure to that."
+---
+id: books-idnr4-daily-breakout
+name: Raschke/Connors ID/NR4 next-day breakout with stop-and-reverse
+mechanism: volatility
+timeframe_signal: 5m
+session: "01:00-21:00 UTC"
+entry:
+  long:  "yesterday (23:00-21:00 daily bar) is an inside day AND its range is the narrowest of the last 4 days; today buy stop at yesterday_high + 0.05*ATR14(daily)"
+  short: "same setup; sell stop at yesterday_low - 0.05*ATR14(daily)"
+  order: stop
+stop: "initial stop at the opposite side of the ID/NR4 bar; on stop-out, reverse once (stop-and-reverse) with stop at the original entry level"
+target: "none (time exit); variant: 1.0*ATR14(daily) from entry"
+time_exit: "20:55 UTC"
+filters:
+  - "orders active only from 01:00 UTC (skip the thin 23:00-01:00 rollover hour)"
+  - "max one reversal per day; no new entries after 18:00 UTC"
+  - "optional: 6-day historical volatility < 50% of its 100-day range (from the HV-ID-NR4 script)"
+params:
+  buffer_atr:  {default: 0.05, grid: [0.0, 0.05, 0.1]}
+  nr_n:        {default: 4, grid: [4, 7]}
+  sar_enabled: {default: true, grid: [true, false]}
+  hv_filter:   {default: false, grid: [true, false]}
+expected_frequency: "~2-4 setups per month"
+claimed: "none"
+assumptions:
+  - "the original is a multi-day trade; we force a same-day exit at 20:55 UTC"
+  - "buffer of 0.05*ATR replaces 'one tick'; 01:00 start and 18:00 entry cutoff chosen by researcher"
+sources:
+  - https://www.tradingsetupsreview.com/inside-daynr4
+  - https://www.tradingview.com/script/WQTX77dn-HV-ID-ND4-Breakout
+  - https://thepatternsite.com/InsideDays.html
+notes: "Daily compression usually leads to range expansion the next day; gold's big NY-session expansion days often follow quiet inside days. Few trades, so it needs many years of data. Bulkowski reports a 32% break-even failure rate for inside days with upward breakouts on daily stock charts; this is a different market and a daily study, so treat it only as context."
+---
+id: books-turtle-soup-15m
+name: Turtle Soup (Raschke/Connors) on a 20-bar 15m channel
+mechanism: structure
+timeframe_signal: 15m
+session: "07:00-20:00 UTC"
+entry:
+  long:  "current 15m bar makes a new 20-bar low (lower than lows of prior 20 bars) AND the previous 20-bar low was set >= 4 bars earlier; buy stop at that previous 20-bar low, valid for the next 2 bars"
+  short: "mirror: new 20-bar high, previous 20-bar high >= 4 bars old; sell stop at previous 20-bar high, valid 2 bars"
+  order: stop
+stop: "new extreme (low of the breakout bar for longs) - 0.1*ATR14(15m)"
+target: "1.5R; trail with 1*ATR14(15m) once 1R reached"
+time_exit: "20:55 UTC or 16 bars (4h) after entry"
+filters:
+  - "the breakout must exceed the prior 20-bar extreme by >= 0.2*ATR14(15m) (a real run, not a touch)"
+  - "skip 30 min either side of high-impact US data releases"
+  - "max 2 trades per day"
+params:
+  channel_bars: {default: 20, grid: [20, 40, 80]}
+  min_age_bars: {default: 4, grid: [3, 4, 6]}
+  overshoot_atr: {default: 0.2, grid: [0.1, 0.2, 0.4]}
+  target_r:     {default: 1.5, grid: [1.0, 1.5, 2.0]}
+expected_frequency: "~1 per day"
+claimed: "none"
+assumptions:
+  - "original uses daily bars and 20-day lows; re-scaled to 15m bars"
+  - "overshoot minimum, ATR stop buffer, 2-bar order validity, trail and news blackout chosen by researcher"
+sources:
+  - https://www.luxalgo.com/library/concept/turtle-soup.md
+  - https://www.mql5.com/it/articles/2717
+  - https://www.cryptodatadownload.com/blog/posts/turtle-soup-trading-strategy-python-cryptocurrency/
+notes: "How this differs from T4 (sub-5s sweep of 15/30-min level): it works on 15m closed bars, needs the channel extreme to be at least 4 bars old (stops have had time to build up), and only enters if price comes back through the old level with a stop order. It is a slower, structural failed breakout, not a tick-scale spike. Failure mode: strong trend days, where new extremes keep extending."
+---
+id: books-ict-judas-asia-sweep
+name: ICT Judas swing - Asian range sweep at London open, displacement + FVG entry
+mechanism: structure
+timeframe_signal: 5m
+session: "07:00-10:00 UTC"
+entry:
+  long:  "between 07:00 and 09:30 UTC price trades below Asia low (23:00-07:00) by >= 0.1*Asia range; then a 5m bar closes back above Asia low with body >= 1.2*ATR14(5m) (displacement) leaving a bullish FVG (low[0] > high[2]); place buy limit at top of the FVG"
+  short: "mirror: sweep above Asia high, bearish displacement close back below Asia high, FVG (high[0] < low[2]); sell limit at bottom of FVG"
+  order: limit
+stop: "beyond the sweep extreme + 0.1*ATR14(5m)"
+target: "opposite side of the Asian range; if < 1.5R use 1.5R"
+time_exit: "12:00 UTC; cancel unfilled limit at 10:00 UTC"
+filters:
+  - "Asia range between 0.3x and 1.2x its 20-day average (skip trend-drift and dead nights)"
+  - "only the first sweep of the day counts; max 1 trade"
+params:
+  sweep_min_frac: {default: 0.1, grid: [0.0, 0.1, 0.2]}
+  disp_atr:       {default: 1.2, grid: [1.0, 1.2, 1.5, 2.0]}
+  entry_mode:     {default: "fvg_limit", grid: ["fvg_limit", "close_of_displacement"]}
+  window_end:     {default: "09:30", grid: ["08:30", "09:30", "10:30"]}
+expected_frequency: "~0.4 per day"
+claimed: "none"
+assumptions:
+  - "ICT is discretionary; displacement threshold, sweep size, range filter and FVG definition are researcher choices"
+  - "killzone set to 07:00-10:00 UTC (sources vary between 06:00 and 08:00 starts)"
+sources:
+  - https://www.luxalgo.com/library/concept/judas-swing.md
+  - https://kr.tradingview.com/script/xIo6SRKc-ICT-Judas-Silver-Bullet
+  - https://ctrader.com/products/4322
+notes: "How this differs from T4: the level is the full Asian range, the window is fixed to the London open, and entry needs a confirmed 5m displacement bar and FVG retrace, not a sub-5s rejection. T5 found that retest limits suffered adverse selection on spikes; compare entry_mode = close_of_displacement against fvg_limit."
+---
+id: books-raschke-8020-daily
+name: Raschke 80-20 - fade the day after a close at the extreme
+mechanism: mean_reversion
+timeframe_signal: 5m
+session: "01:00-16:00 UTC"
+entry:
+  long:  "yesterday (23:00-21:00) opened in the top 20% of its range and closed in the bottom 20%; today, after price trades >= 0.1*ATR14(daily) below yesterday_low, place buy stop at yesterday_low"
+  short: "mirror: yesterday opened in bottom 20% and closed in top 20%; after price trades >= 0.1*ATR14(daily) above yesterday_high, sell stop at yesterday_high"
+  order: stop
+stop: "today's extreme so far - 0.05*ATR14(daily) (below the low made on the overshoot)"
+target: "midpoint of yesterday's range; trail remainder by 0.5*ATR14(daily)"
+time_exit: "20:55 UTC; arm the setup only until 16:00 UTC"
+filters:
+  - "yesterday's range >= 0.8*ATR14(daily) (a real trend day)"
+  - "max 1 trade per day"
+params:
+  extreme_frac:  {default: 0.2, grid: [0.1, 0.2, 0.25]}
+  overshoot_atr: {default: 0.1, grid: [0.05, 0.1, 0.2]}
+  arm_until:     {default: "16:00", grid: ["12:00", "16:00"]}
+expected_frequency: "~2-4 per month"
+claimed: "none (book says the setup is a high-probability reversal; not verified)"
+assumptions:
+  - "overshoot distance 0.1*ATR replaces the book's 10-15 ticks"
+  - "midpoint target, trailing rule, range filter and arming window chosen by researcher"
+  - "Larry Williams' Oops (gap beyond yesterday's range, then stop entry back at yesterday's extreme) is folded in here because gold has no daily gap; a variant can drop the open/close condition and trigger on any Asia-session move beyond yesterday's range"
+sources:
+  - https://roboforex.com/blog/education/trading-strategies-that-were-a-revolution-three-strategies-of-linda-raschke/
+  - https://www.antoinebuteau.com/lessons-from-linda-bradford-raschke.md
+  - https://www.mql5.com/en/articles/21741
+notes: "Uses a daily structural condition (close at the extreme) and an intraday failed continuation. Sources disagree on whether 80-20 is a reversal or a follow-through setup: the book quote is follow-through, while Street Smarts' trade rules are a reversal. This card codes the reversal version; testing the opposite sign is cheap."
+---
+id: books-holy-grail-15m
+name: Raschke/Connors Holy Grail - ADX trend pullback to 20 EMA
+mechanism: momentum
+timeframe_signal: 15m
+session: "07:00-19:00 UTC"
+entry:
+  long:  "ADX14(15m) > 30 and rising over the last 3 bars, +DI > -DI; a bar's low touches EMA20(15m); buy stop at that bar's high + 0.05*ATR14, valid for the next 3 bars"
+  short: "ADX14 > 30 and rising, -DI > +DI; a bar's high touches EMA20; sell stop at that bar's low - 0.05*ATR14, valid 3 bars"
+  order: stop
+stop: "low of the pullback swing (lowest low since the touch bar) for longs; mirror for shorts"
+target: "most recent swing high (prior trend extreme) for longs; mirror for shorts; trail by EMA20 after that"
+time_exit: "20:55 UTC"
+filters:
+  - "the first touch of EMA20 after ADX crosses above 30 only (Raschke's first-pullback idea)"
+  - "max 2 trades per day"
+params:
+  adx_threshold: {default: 30, grid: [25, 30, 35]}
+  ma_len:        {default: 20, grid: [20, 34]}
+  ma_type:       {default: "EMA", grid: ["EMA", "SMA"]}
+  tf:            {default: "15m", grid: ["5m", "15m", "1h"]}
+expected_frequency: "~0.5 per day"
+claimed: "none"
+assumptions:
+  - "applied on 15m instead of daily; 3-bar ADX-rising definition, first-touch rule, entry buffer and EMA trail chosen by researcher"
+sources:
+  - https://tradingsetupsreview.com/the-holy-grail-trading-setup
+  - https://my.tradingview.com/script/hawl3ybg-Holy-Grail-Setup-with-Confidence-Opacity
+notes: "A momentum continuation idea, unlike the reversal cards here. Gold trends hard in the NY session after macro releases, and ADX > 30 picks those regimes. Failure mode: ADX lags, so the first pullback after a news spike is often the top."
+---
+id: books-williams-vol-breakout
+name: Larry Williams volatility breakout from the day open
+mechanism: volatility
+timeframe_signal: 1m
+session: "00:00-21:00 UTC"
+entry:
+  long:  "price trades >= O_day + k * R_prev, where O_day = 23:00 UTC open and R_prev = yesterday's (23:00-21:00) high-low"
+  short: "price trades <= O_day - k * R_prev"
+  order: stop
+stop: "k_stop * R_prev from entry (default 0.5*R_prev); OCO with the opposite side"
+target: "none (time exit) - Williams' original exits on the close"
+time_exit: "20:55 UTC"
+filters:
+  - "max 1 trade per day; first side hit wins"
+  - "variant: use R_prev = mean range of the last 3 days"
+params:
+  k:        {default: 0.5, grid: [0.3, 0.5, 0.7, 1.0]}
+  k_stop:   {default: 0.5, grid: [0.3, 0.5, 1.0]}
+  ref_open: {default: "23:00", grid: ["23:00", "07:00"]}
+  range_lb: {default: 1, grid: [1, 3]}
+expected_frequency: "~0.6-0.9 per day depending on k"
+claimed: "none"
+assumptions:
+  - "day open placed at 23:00 UTC; the 07:00 reference variant was added by the researcher"
+  - "stop size as a fraction of range chosen by researcher (Williams often used money stops)"
+sources:
+  - https://www.luxalgo.com/library/concept/volatility-breakout.md
+  - https://www.luxalgo.com/library/indicator/vzWeDyXd-volatility-breakout-strategy/
+notes: "Range-expansion momentum that holds to the close of the day. How this differs from T7: the trigger is a volatility-scaled distance from the open, not a fixed-time anchor, and the holding period is up to a full day. With the 07:00 reference it overlaps the Crabel card; keep both because the levels differ (prior-day range vs. noise stretch)."
+---
+id: books-ict-silver-bullet-ny
+name: ICT Silver Bullet - 10:00-11:00 New York sweep + FVG
+mechanism: structure
+timeframe_signal: 1m
+session: "10:00-11:00 America/New_York (14:00-15:00 UTC in US summer time, 15:00-16:00 UTC in winter)"
+entry:
+  long:  "inside the window, price first takes out the lowest low of the 08:30-10:00 NY period (or the NY session low so far); then a bullish 3-bar FVG forms on 1m with middle-bar body >= 1.0*ATR14(1m); buy limit at top of FVG"
+  short: "mirror: takes out the 08:30-10:00 NY high; bearish FVG; sell limit at bottom of FVG"
+  order: limit
+stop: "beyond the sweep wick + 0.1*ATR14(5m)"
+target: "opposite extreme of the 08:30-10:00 NY range (draw on liquidity); minimum 2R, else skip"
+time_exit: "11:30 NY time; cancel unfilled limits at 11:00 NY"
+filters:
+  - "FVG size >= 0.3*ATR14(1m) to skip micro gaps"
+  - "max 1 trade per window"
+  - "skip FOMC/CPI days"
+params:
+  fvg_min_atr:  {default: 0.3, grid: [0.2, 0.3, 0.5]}
+  disp_atr:     {default: 1.0, grid: [0.8, 1.0, 1.5]}
+  min_rr:       {default: 2.0, grid: [1.5, 2.0, 3.0]}
+  liquidity_ref: {default: "08:30-10:00", grid: ["08:30-10:00", "session_so_far", "prior_day"]}
+expected_frequency: "~0.5 per day"
+claimed: "none (marketing claims are widespread; ignore them)"
+assumptions:
+  - "the liquidity reference range (08:30-10:00 NY), displacement and FVG size thresholds and min-R filter chosen by researcher"
+  - "window follows New York local time (DST-aware), as ICT teaches"
+sources:
+  - https://pl.tradingview.com/chart/EURUSD/jOkVQBxm-What-Is-the-ICT-Silver-Bullet-Strategy-and-How-Does-It-Work
+  - https://my.tradingview.com/script/K6B5kxjJ-ICT-Silver-Bullet-JadeCap
+notes: "Close to T7 and T8 in time (after the 10:00 ET data release), but needs a liquidity sweep plus an FVG retrace rather than plain momentum or fade at the anchor time. Check T5's adverse-selection result on limit entries; consider a market-on-FVG-close variant."
+---
+id: books-wyckoff-spring-upthrust-5m
+name: Wyckoff spring / upthrust out of an intraday trading range
+mechanism: structure
+timeframe_signal: 5m
+session: "08:00-20:00 UTC"
+entry:
+  long:  "trading range = high/low of the last 36 bars (3h), width <= 2.5*ATR14(15m) and each side touched >= 2 times; spring bar: low < range_low by 0.05-0.5*ATR14(5m), close back inside range in the upper half of the bar, tick volume <= 1.0x 20-bar mean (no supply); buy stop at spring bar high, valid 3 bars"
+  short: "mirror upthrust: high > range_high by 0.05-0.5*ATR, close back inside in lower half, tick volume <= 1.0x mean; sell stop at upthrust bar low"
+  order: stop
+stop: "spring low - 0.1*ATR14(5m) (mirror for upthrust)"
+target: "opposite side of the trading range (range_high for spring)"
+time_exit: "20:55 UTC or 24 bars after entry"
+filters:
+  - "no spring if a bar breaks the range by > 0.5*ATR (that is a breakout, not a test)"
+  - "variant: require high-volume spring (>= 1.5x mean) - sources disagree on the volume sign"
+  - "max 2 trades per day"
+params:
+  range_bars:   {default: 36, grid: [24, 36, 72]}
+  max_width_atr: {default: 2.5, grid: [2.0, 2.5, 3.5]}
+  vol_rule:     {default: "low", grid: ["low", "high", "none"]}
+expected_frequency: "~0.5 per day"
+claimed: "none"
+assumptions:
+  - "range definition, touch count, penetration band, volume thresholds and time stop all chosen by researcher (Wyckoff is discretionary)"
+  - "tick volume used as a proxy for traded volume"
+sources:
+  - https://www.luxalgo.com/library/concept/upthrust.md
+  - https://ru.tradingview.com/scripts/search/swing trading/page-5
+notes: "Mean reversion inside a confirmed range, targeting the opposite edge. It differs from Turtle Soup because it needs a defined, tested range and a volume condition, and the target is the far side of the range. The low- vs high-volume conflict is a natural test axis."
+---
+id: books-mp-80pct-rule
+name: Market Profile 80% rule - re-entry into prior day's value area
+mechanism: mean_reversion
+timeframe_signal: 30m
+session: "07:00-20:00 UTC"
+entry:
+  long:  "prior day (23:00-21:00) volume profile from 1m tick volume, value area = 70% of volume around POC; today's 07:00 UTC price is below VAL; then two consecutive 30m bars close inside the value area; buy at the close of the second bar"
+  short: "07:00 price above VAH; two consecutive 30m closes inside value; sell at the close of the second bar"
+  order: market
+stop: "today's low beyond VAL (for longs) - 0.1*ATR14(30m); max 1.0*VA width"
+target: "opposite value-area edge (VAH for longs); partial at POC"
+time_exit: "20:55 UTC"
+filters:
+  - "re-entry must happen before 16:00 UTC"
+  - "skip if the 07:00 open is more than 1.0*VA width outside value (trend/gap day)"
+  - "max 1 trade per day"
+params:
+  va_pct:        {default: 0.70, grid: [0.68, 0.70, 0.80]}
+  confirm_bars:  {default: 2, grid: [1, 2]}
+  reference_open: {default: "07:00", grid: ["23:00", "07:00", "13:30"]}
+  profile_source: {default: "tick_volume", grid: ["tick_volume", "TPO"]}
+expected_frequency: "~0.2-0.3 per day"
+claimed: "the '80%' is a rule-of-thumb label, not an audited statistic"
+assumptions:
+  - "prior-day profile on 23:00-21:00, 07:00 'open' reference, stop and skip rules chosen by researcher (designed for pit-session futures with a real open)"
+sources:
+  - https://www.luxalgo.com/library/concept/80-percent-rule.md
+  - https://nexusfi.com/a/concepts/80-percent-rule
+  - https://www.metrotrade.com/what-is-the-80-rule-in-futures-trading/
+notes: "Gold trades 23h, so the open is not clean; testing the reference open (Asia, London or COMEX 13:30) is part of the design. A known failure mode is trend days, which drive away without returning to value."
+---
+id: books-ib-extension-ny
+name: Initial balance (first NY hour) - narrow IB extend, wide IB fade
+mechanism: breakout
+timeframe_signal: 5m
+session: "13:30-20:00 UTC"
+entry:
+  long:  "IB = 13:30-14:30 UTC high/low; if IB width < 0.7 * 20-day median IB width: buy on first 5m close above IB_high (before 18:00 UTC). If IB width > 1.3 * median: sell short on first 5m close back below IB_high after a probe above it (fade to IB mid)"
+  short: "narrow IB: sell on first 5m close below IB_low. wide IB: buy on 5m close back above IB_low after probe below it"
+  order: market
+stop: "breakout mode: IB midpoint; fade mode: probe extreme + 0.1*ATR14(5m)"
+target: "breakout mode: 1.0 * IB width beyond the broken edge; fade mode: IB midpoint"
+time_exit: "20:00 UTC"
+filters:
+  - "VWAP filter (breakout mode): long only if price > session VWAP anchored at 13:30 UTC; short only if below"
+  - "normal IB (0.7-1.3x median): no trade"
+  - "max 1 trade per day"
+params:
+  ib_start:   {default: "13:30", grid: ["12:00", "13:20", "13:30"]}
+  ib_minutes: {default: 60, grid: [30, 60]}
+  narrow_mult: {default: 0.7, grid: [0.5, 0.7, 0.85]}
+  wide_mult:  {default: 1.3, grid: [1.2, 1.3, 1.5]}
+  ext_target: {default: 1.0, grid: [0.5, 1.0, 1.5]}
+expected_frequency: "~0.5 per day"
+claimed: "none"
+assumptions:
+  - "IB anchored at 13:30 UTC (US equity open, close to COMEX's 13:20 open); thresholds, targets and stops chosen by researcher"
+  - "the regime split (narrow vs wide) comes from the ProRealCode description; numbers are researcher choices"
+sources:
+  - https://jp.tradingview.com/script/yc6JyC1T-Initial-Balance-Breakout-samjNQ-v3/
+  - https://market.prorealcode.com/product/pro-initial-balance-screener/
+  - https://intercom.help/edgeful/en/articles/13703933-using-the-ib-algo
+notes: "How this differs from T8 (NYSE first-minute momentum): it waits a full hour, and the regime chooses breakout or fade from the IB width compared with recent history. The prior decision ignored range context. Use the 13:20 COMEX variant on DST days with care: US and UK DST change on different dates."
+---
+id: books-avwap-london-pullback
+name: London-anchored VWAP trend pullback with 1-sigma band reclaim
+mechanism: vwap
+timeframe_signal: 5m
+session: "08:00-20:00 UTC"
+entry:
+  long:  "AVWAP anchored at 07:00 UTC (tick-volume weighted); trend state: >= 70% of 5m closes since 07:00 above AVWAP AND AVWAP slope over the last 12 bars > 0; pullback: a bar's low touches AVWAP (or the -1 sigma band); entry on the first 5m close back above the +0 band (AVWAP) with close > open"
+  short: "mirror: >= 70% of closes below AVWAP, negative slope, rally to AVWAP/+1 sigma, entry on first bearish close back below AVWAP"
+  order: market
+stop: "below the -1.5 sigma band at entry (mirror for shorts), min 0.5*ATR14(5m)"
+target: "+2 sigma band (dynamic) or session high; trail stop to AVWAP after 1R"
+time_exit: "20:55 UTC"
+filters:
+  - "max 2 trades per day; none in the 30 min after a high-impact release"
+  - "fade variant for comparison: 5m bar opens beyond the ±2 sigma band and closes back inside, target AVWAP (Backtrex DAX test of this fade was negative: PF 0.64)"
+params:
+  anchor:      {default: "07:00", grid: ["23:00", "07:00", "13:30", "prior_day_high_or_low_time"]}
+  trend_frac:  {default: 0.7, grid: [0.6, 0.7, 0.8]}
+  touch_band:  {default: 0.0, grid: [0.0, -1.0]}
+  mode:        {default: "pullback", grid: ["pullback", "fade_2sd"]}
+expected_frequency: "~1 per day"
+claimed: "none; one vendor DAX test of the 2-sigma fade was strongly negative"
+assumptions:
+  - "trend-share, slope, band thresholds and the anchor list chosen by researcher; the prior-day-extreme anchor is the classic Brian Shannon anchored-VWAP use"
+  - "tick volume as the volume proxy"
+sources:
+  - https://civolatility.substack.com/p/vwap
+  - https://www.luxalgo.com/library/indicator/CzQ5lLHJ-vwap-strategy/
+  - https://backtrex.com/en/backtests/vwap-band-fade-dax
+notes: "Joins trend selection with pullback entry at a level the market watches. The negative DAX 2-sigma fade result is the reason the default is pullback-with-trend; keep the fade only as a control. Tick-volume VWAP on spot gold may differ from COMEX VWAP; compare against a time-weighted version."
