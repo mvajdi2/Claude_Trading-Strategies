@@ -1,0 +1,59 @@
+==== asian_range_fakeout (H1, fixed) ====
+[screen] asian_range_fakeout {'asian_end': 6, 'max_bars_outside': 3, 'stop_buf': 0.2, 'exit_h': 20}
+         n  per_wk     wr    pf   pfR  expR  ret_pct  dd_pct  avg_hold_min
+IS   117.0    2.31  39.32  0.69  0.63 -0.21   -11.56   13.76        234.69
+VAL   36.0    1.89  27.78  0.34  0.35 -0.40    -6.91    8.73        202.53
+==== asian_range_fakeout_15m ====
+[screen] asian_range_fakeout_15m {'asian_end': 6, 'max_bars_outside': 8, 'stop_buf': 0.1, 'exit_h': 16, 'range_filter': True}
+         n  per_wk     wr    pf   pfR  expR  ret_pct  dd_pct  avg_hold_min
+IS   168.0    3.26  32.74  0.78  0.77 -0.15   -11.86   15.09        136.05
+VAL   70.0    3.40  37.14  1.07  0.82 -0.11    -3.88    5.65        104.49
+==== level_sweep_reclaim ====
+[screen] level_sweep_reclaim {'channel_bars': 20, 'min_age_bars': 4, 'overshoot_atr': 0.2, 'news_skip': True}
+         n  per_wk     wr    pf   pfR  expR  ret_pct  dd_pct  avg_hold_min
+IS   275.0    5.30  34.55  0.64  0.70 -0.20   -24.83   26.06         46.99
+VAL  139.0    6.62  45.32  0.98  1.14  0.08     5.12   10.47         52.82
+IS trades 275; immediate triggers 144 (52%); median sl $4.23; median cost $0.070; median cost/R 2.6%
+  [ANNOTATION: the $0.070 / 2.6% figure is invalid. It is pnl(zero-cost) minus pnl(base-cost) joined by decision second, and the two runs take different trade paths (different exits and skipped signals), so the difference is not the cost. Cost-model value: round trip about $0.24 (spread floor $0.10 + 2 x $0.03 slippage + $0.07 commission), which is about 5.7% of the $4.23 median R. The report uses this value.]
+  channel 40: IS signals 209, median sl $4.55, est cost/R ~ 5.5%
+  channel 80: IS signals 127, median sl $4.30, est cost/R ~ 5.8%
+==== rsi_extreme_fade ====
+[screen] rsi_extreme_fade {'tf': 300, 'rsi_lo': 30, 'ema_filter': True, 'hold_min': 60, 'one_per_episode': False}
+        n  per_wk     wr    pf   pfR  expR  ret_pct  dd_pct  avg_hold_min
+IS   76.0    1.48  34.21  0.73  0.76 -0.17    -6.48    9.90         17.85
+VAL  30.0    1.46  43.33  2.11  1.51  0.29     4.33    2.98         13.09
+  tf=300 ema_filter=True one_per_episode=False: IS signals 104 (2.0/wk), IS trades 76 (1.5/wk)
+  tf=300 ema_filter=True one_per_episode=True: IS signals 49 (0.9/wk), IS trades 49 (0.9/wk)
+  tf=300 ema_filter=False one_per_episode=False: IS signals 3435 (66.1/wk), IS trades 1630 (31.3/wk)
+  tf=300 ema_filter=False one_per_episode=True: IS signals 555 (10.7/wk), IS trades 555 (10.7/wk)
+  tf=60 ema_filter=True one_per_episode=False: IS signals 693 (13.3/wk), IS trades 457 (8.8/wk)
+  tf=60 ema_filter=True one_per_episode=True: IS signals 287 (5.5/wk), IS trades 287 (5.5/wk)
+  tf=60 ema_filter=False one_per_episode=False: IS signals 16153 (310.6/wk), IS trades 8424 (162.0/wk)
+  tf=60 ema_filter=False one_per_episode=True: IS signals 2658 (51.1/wk), IS trades 2658 (51.1/wk)
+==== round_level ====
+[screen] round_level {'step': 20, 'offset': 0.0, 'momentum_atr': 1.0, 'hold_min': 240, 'news_skip': True, 'direction': 'bounce'}
+         n  per_wk     wr    pf   pfR  expR  ret_pct  dd_pct  avg_hold_min
+IS   158.0    3.10  39.87  0.83  0.83 -0.12    -9.08   12.88          6.92
+VAL  184.0    9.07  38.59  0.69  0.69 -0.25   -21.12   23.95          2.12
+[screen] round_level {'step': 20, 'offset': 10.37, 'momentum_atr': 1.0, 'hold_min': 240, 'news_skip': True, 'direction': 'bounce'}
+         n  per_wk     wr    pf   pfR  expR  ret_pct  dd_pct  avg_hold_min
+IS   170.0     3.3  38.82  0.81  0.81 -0.13   -10.66   16.47          7.02
+VAL  179.0     8.7  41.34  0.82  0.82 -0.13   -11.31   14.05          1.94
+==== raschke_8020 ====
+[screen] raschke_8020 {'extreme_frac': 0.2, 'overshoot_atr': 0.1, 'arm_until': 16, 'cond': '8020'}
+        n  per_wk     wr    pf   pfR  expR  ret_pct  dd_pct  avg_hold_min
+IS   28.0    0.61  32.14  0.99  0.51 -0.32    -4.39    5.71        436.47
+VAL   7.0    0.37  42.86  1.73  1.39  0.23     0.78    1.74        386.45
+[screen] raschke_8020 {'extreme_frac': 0.2, 'overshoot_atr': 0.1, 'arm_until': 16, 'cond': 'oops'}
+        n  per_wk     wr    pf   pfR  expR  ret_pct  dd_pct  avg_hold_min
+IS   76.0    1.56  35.53  0.98  0.76 -0.15     -5.6    6.25        351.32
+VAL  34.0    1.63  35.29  0.72  1.05  0.03      0.4    5.78        371.04
+==== wyckoff_spring IS counts ====
+  {} IS signals/trades: (16, 16)
+  {'vol_rule': 'none'} IS signals/trades: (53, 53)
+  {'max_width_atr': 3.5} IS signals/trades: (56, 56)
+  {'max_width_atr': 5.0} IS signals/trades: (86, 85)
+  {'range_bars': 24} IS signals/trades: (72, 71)
+  {'vol_rule': 'none', 'max_width_atr': 5.0} IS signals/trades: (220, 217)
+  {'vol_rule': 'none', 'max_width_atr': 5.0, 'range_bars': 24} IS signals/trades: (268, 262)
+  {'vol_rule': 'none', 'max_width_atr': 5.0, 'range_bars': 24, 'entry': 'close'} IS signals/trades: (313, 308)

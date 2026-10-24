@@ -24,15 +24,23 @@ Protocol:
 | asian_range_fakeout_15m (practitioners-asian-range-false-break-fade) | 267 | asian_end 6, mbo 4, stop_buf 0.0, exit 20:00, no range filter; scalp_be sl 3 / tp1 0.25 f 0.7 / tp 1.5 / BE | 151 / 92.7 / 1.19 / 1.12 / 1.7 / 2.92 | 66 / 89.4 / 1.20 / 0.68 / 1.4 / 3.21 | – | REJECT at screen (defaults 0.77) |
 | level_sweep_reclaim (Turtle Soup 15m only; books-turtle-soup-15m) | 213 | channel 80, min_age 6, overshoot 0.2 ATR, no news skip; fixed sl 2R / tp 2R | 145 / 51.0 / 1.05 / 0.96 / 9.0 / 2.82 | 59 / 45.8 / 0.46 / 0.74 / 7.3 / 2.89 | – | REJECT at screen (defaults 0.70) |
 | raschke_8020 (books-raschke-8020-daily) | 2 (screen only, X7) | card defaults; `cond=oops` variant | 8020: 28 / 32.1 / 0.99 / 0.51 / 5.7 / 0.61; oops: 76 / 35.5 / 0.98 / 0.76 / 6.3 / 1.56 | 8020: 7 / 42.9 / 1.73 / 1.39; oops: 34 / 35.3 / 0.72 / 1.05 | – | REJECT: ineligible by trade count (card version); oops variant fails screen |
-| wyckoff_spring (books-wyckoff-spring-upthrust-5m) | 231 | range 24, width ≤ 5.0 ATR15, vol_rule high, entry at close; card exit | 60 / 36.7 / 1.35 / 1.25 / 5.1 / 1.21 | 22 / 31.8 / 0.40 / 0.60 / 4.7 / 1.10 | – | REJECT at screen (defaults n=16 IS) |
+| wyckoff_spring (books-wyckoff-spring-upthrust-5m) | 231 | plateau finalist: range 72, width ≤ 5.0 ATR15, vol_rule none, stop entry (plateau 1.02); card exit 112 / 31.3 / 0.93 / 1.04 / 11.2 / 2.16; best stage-2 exit fixed sl 1R / tp 3R | 112 / 33.9 / 0.95 / 1.12 / 8.5 / 2.16 | not looked at (no finalist ≥ 1.3) | – | REJECT at screen (defaults n=16 IS). Highest single IS row, off-plateau: range 24 / width 5.0 / vol high / close, n60, PF(R) 1.25 |
 | mp_80pct (books-mp-80pct-rule) | 195 | VA 68 %, 2 confirm bars, ref 23:00, tick-volume profile; trail sl 2R / trail 1.5R | 70 / 42.9 / 1.17 / 1.20 / 1.9 / 1.36 | 24 / 58.3 / 1.72 / 1.47 / 0.9 / 1.22 | – | REJECT at screen (defaults 0.64; best IS < 1.3) |
 | bb_pinbar_fade (marketplaces-bb-pinbar-fade-m5) | 248 | bb_dev 2.5, wick_body 1.5, EMA200(H1) filter on, 5m; fixed sl 1.0R / tp 2.0R | 81 / 49.4 / 1.50 / 1.40 / 5.6 / 1.57 | 31 / 58.1 / 2.13 / 2.30 / 2.1 / 1.56 | **33 / 39.4 / 0.52 / 0.71 / 5.4 / 1.70**; stress PF 0.35, DD 7.0 | **OOS FAIL** (frozen for the honest frontier; gates not met on IS or VAL either) |
-| rsi_extreme_fade (practitioners-rsi-extreme-ema200-fade) | 125 | 5m, RSI < 20 / > 80, no EMA filter, hold 120 min, one per episode; card exit (1 ATR / 2 ATR) | 116 / 40.5 / 1.24 / 1.17 / 5.7 / 2.26 | 37 / 43.2 / 1.80 / 1.31 / 3.6 / 1.95 | – | REJECT at screen (defaults 0.76; best IS < 1.3) |
+| rsi_extreme_fade (practitioners-rsi-extreme-ema200-fade) | 125 | plateau finalist: 5m, RSI < 20 / > 80, no EMA filter, hold 60 min, one per episode (plateau 0.95); card exit 116 / 38.8 / 1.13 / 1.05 / 5.7 / 2.26; best stage-2 exit trail sl 0.5 / trail 1.5 | 116 / 27.6 / 0.92 / 1.16 / 11.8 / 2.26 | not looked at (no finalist ≥ 1.3) | – | REJECT at screen (defaults 0.76). Highest single IS row: hold 120 min, card exit, PF(R) 1.17 |
 | vwap_sd_fade (practitioners-vwap-3sd-fade) | 177 | band 2.0 sd, anchor 00:00, slope filter on; trail sl 1R / trail 1.5R | 350 / 37.1 / 0.91 / 0.97 / 14.3 / 6.77 | 152 / 31.6 / 0.43 / 0.59 / 22.0 / 7.39 | – | REJECT at screen (defaults 0.86) |
 | overreaction_fade (academic-overreaction-fade-volnorm) | 207 | z 3.0, 30 min window, hold 90 min, no news skip; scalp_be sl 3 / tp1 0.5 f 0.5 / tp 1.5 / BE | 140 / 71.4 / 1.30 / 1.32 / 1.4 / 2.94 | 28 / 67.9 / 1.12 / 1.06 / 1.3 / 1.38 | – | REJECT at VAL |
 | round_level (marketplaces-round20-level-fade + practitioners-round20-level-reaction) | 255 | step 50, offset 0, momentum 1.0 ATR, hold 240 min, news skip, **break**; scalp_be sl 3 / tp1 0.5 f 0.5 / tp 3 / BE | 72 / 81.9 / 1.45 / 1.45 / 2.2 / 1.50 | 73 / 54.8 / 0.36 / 0.36 / 10.0 / 3.93 | – | REJECT at VAL; placebo shows no level effect |
 | silver_bullet (ICT) | 0 | – | – | – | – | SKIPPED – ICT/SMC excluded by user |
 | taylor_sweep (liquidity sweep + reclaim) | 0 | – | – | – | – | SKIPPED – ICT/SMC excluded by user |
+
+Finalist rule. For wyckoff_spring and rsi_extreme_fade, the rows above are the protocol's top-plateau
+setting with n_IS ≥ 60, plus its best stage-2 exit. An earlier draft listed their best single-row
+IS PF(R) instead. Both stay below 1.3 either way, and the verdicts are unchanged.
+
+round_level placebo. The offset 10.37 is a control, not a tradable setting. The harness ranked
+placebo-offset settings at the top of the stage-1 plateau. Placebo rows were excluded by hand when
+choosing the finalist, which was taken from the real-level (offset 0) rows only.
 
 Variants dropped for the same reason: the Judas/Asia-sweep FVG component (books-ict-judas-asia-sweep),
 the PDH/PDL sweep-reclaim (practitioners-pdh-pdl-sweep-reclaim) and the previous-candle sweep
