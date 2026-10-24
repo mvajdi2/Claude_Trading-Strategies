@@ -1,0 +1,19 @@
+{
+ "id": "bb_pinbar_fade",
+ "params": {
+  "bb_dev": 2.5,
+  "wick_body": 1.5,
+  "ema_filter": true,
+  "tf": 300
+ },
+ "exit": {
+  "sl": 1.0,
+  "tp": 2.0
+ },
+ "note": "Batch B honest-frontier freeze (IS PF(R) 1.40 >= 1.3, VAL PF 2.13 >= 1.3; gates not met: WR ~49-58%, PF ~1.5-2.1). Chosen by IS only: best stage-1 setting with n_IS>=60 (pfR 1.25 card exit), exit = centre of fixed sl=1.0R plateau (tp 1.5-3.0R all IS pfR 1.40-1.45). Parameter plateau score only 1.13 (neighbours weak). 195+53=248 combos counted. _bxutil.py sha256[:16]=4d6700a43bb1ecec",
+ "code_sha": "e3ee752231ebc9ce",
+ "hash_scheme": "v2",
+ "frozen_at": "2026-10-24T00:10:04.317678+00:00",
+ "oos_run": false,
+ "robust_median_pf_IS": 0.9900028993611851
+}
