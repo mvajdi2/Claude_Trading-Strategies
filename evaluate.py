@@ -83,48 +83,91 @@ def screen(sid):
     return rep
 
 
-def optimise(sid, max_combos=300, objective="pfR_IS", min_n_is=60):
+def _sorted_grid(grid):
+    try:
+        return sorted(grid)
+    except TypeError:
+        return list(grid)
+
+
+def _neighbours(mod, params):
+    """+-1 step neighbours of each parameter, in sorted value order (X3)."""
+    out = []
+    for k, grid in mod.PARAMS.items():
+        g = _sorted_grid(grid)
+        if params.get(k) not in g:
+            continue
+        i = g.index(params[k])
+        for j in (i - 1, i + 1):
+            if 0 <= j < len(g):
+                q = dict(params); q[k] = g[j]; out.append(q)
+    return out
+
+
+def optimise(sid, max_combos=300, objective="pfR_IS", min_n_is=60, top_k=3):
+    """Staged search (X1/X2):
+      stage 1: full parameter grid with the strategy's own (card) exit  -> results/<id>_opt_stage1.csv
+      stage 2: exit templates on the top_k plateau settings of stage 1   -> results/<id>_opt_exits.csv
+    Plateau score = median IS objective over the setting and its sorted +-1 neighbours.
+    Both stages are counted; total combos are printed and capped at max_combos."""
     mod = load_strategy(sid)
     keys = list(mod.PARAMS)
-    combos = list(itertools.product(*[mod.PARAMS[k] for k in keys]))
+    combos = list(itertools.product(*[_sorted_grid(mod.PARAMS[k]) for k in keys]))
+    t0 = time.time()
     exit_mode = getattr(mod, "EXIT_UNIT", False)
-    exits = [None]
-    if exit_mode:
-        exits = [(n, t) for n, ts in EXIT_TEMPLATES.items() for t in ts]
-    total = len(combos) * len(exits)
-    rng = np.random.default_rng(0)
-    if total > max_combos:
-        pick = rng.choice(total, max_combos, replace=False)
-    else:
-        pick = np.arange(total)
+    n_tpl = sum(len(v) for v in EXIT_TEMPLATES.values()) if exit_mode else 0
+    budget1 = max_combos - (top_k * n_tpl if exit_mode else 0)
+    if len(combos) > max(budget1, 1):
+        raise SystemExit(f"{sid}: stage-1 grid has {len(combos)} combos > budget {budget1}; shrink PARAMS")
     rows = []
     cache = {}
-    t0 = time.time()
-    for idx in pick:
-        ci, ei = divmod(int(idx), len(exits))
-        p = dict(zip(keys, combos[ci]))
-        key = tuple(combos[ci])
-        if key not in cache:
-            cache[key] = visible(mod.signals(ctx(), **p))
-        sig = cache[key]
-        ex = exits[ei]
-        if ex is not None:
-            if len(sig) == 0:
+    for c in combos:
+        p = dict(zip(keys, c))
+        cache[c] = visible(mod.signals(ctx(), **p))
+        tr = bt1s.run(ctx(), cache[c]) if len(cache[c]) else pd.DataFrame()
+        row = dict(p); row["exit_kind"] = "card"; row["exit"] = ""
+        row.update(summarize(tr)); rows.append(row)
+    s1 = pd.DataFrame(rows)
+    # plateau score
+    def score(p):
+        vals = []
+        for q in [p] + _neighbours(mod, p):
+            m = s1
+            for k in keys:
+                m = m[m[k] == q[k]]
+            if len(m) and m.iloc[0].get("n_IS", 0) >= min_n_is:
+                vals.append(m.iloc[0][objective])
+        return float(np.nanmedian(vals)) if vals else np.nan
+    s1["plateau"] = [score({k: r[k] for k in keys}) for _, r in s1.iterrows()]
+    s1.to_csv(os.path.join(RESULTS, f"{sid}_opt_stage1.csv"), index=False)
+    total = len(s1)
+    s2 = pd.DataFrame()
+    if exit_mode:
+        best = s1.dropna(subset=["plateau"]).sort_values("plateau", ascending=False).head(top_k)
+        rows = []
+        for _, b in best.iterrows():
+            c = tuple(b[k] for k in keys)
+            sig0 = cache.get(c)
+            if sig0 is None or len(sig0) == 0:
                 continue
-            sig = apply_exit(sig, ex[1])
-        tr = bt1s.run(ctx(), sig)
-        row = dict(p); row["exit"] = json.dumps(ex[1]) if ex else ""
-        row["exit_kind"] = ex[0] if ex else ""
-        row.update(summarize(tr))
-        rows.append(row)
-    res = pd.DataFrame(rows)
+            for kind, tpls in EXIT_TEMPLATES.items():
+                for tpl in tpls:
+                    tr = bt1s.run(ctx(), apply_exit(sig0, tpl))
+                    row = {k: b[k] for k in keys}; row["exit_kind"] = kind; row["exit"] = json.dumps(tpl)
+                    row.update(summarize(tr)); rows.append(row)
+        s2 = pd.DataFrame(rows)
+        s2.to_csv(os.path.join(RESULTS, f"{sid}_opt_exits.csv"), index=False)
+        total += len(s2)
+    res = pd.concat([s1, s2], ignore_index=True)
     res.to_csv(os.path.join(RESULTS, f"{sid}_opt.csv"), index=False)
-    ok = res[res.get("n_IS", 0) >= min_n_is] if "n_IS" in res else res.iloc[0:0]
-    print(f"[optimise] {sid}: {len(res)} combos tested ({time.time()-t0:.0f}s); {len(ok)} with n_IS >= {min_n_is}")
+    ok = res[res["n_IS"] >= min_n_is] if "n_IS" in res else res.iloc[0:0]
+    print(f"[optimise] {sid}: {total} combos tested ({len(s1)} stage-1 + {len(s2)} exit) in {time.time()-t0:.0f}s; "
+          f"{len(ok)} with n_IS >= {min_n_is}")
     if len(ok):
-        cols = keys + ["exit", "n_IS", "wr_IS", "pf_IS", "pfR_IS", "dd_pct_IS", "per_wk_IS",
+        cols = keys + ["exit_kind", "exit", "plateau", "n_IS", "wr_IS", "pf_IS", "pfR_IS", "dd_pct_IS", "per_wk_IS",
                        "n_VAL", "wr_VAL", "pf_VAL", "pfR_VAL", "dd_pct_VAL"]
-        pd.set_option("display.width", 260); pd.set_option("display.max_colwidth", 60)
+        cols = [c for c in cols if c in ok]
+        pd.set_option("display.width", 280); pd.set_option("display.max_colwidth", 60)
         print(ok.sort_values(objective, ascending=False)[cols].head(15).round(2).to_string())
         gate = ok[(ok.wr_IS > 75) & (ok.pf_IS > 3) & (ok.dd_pct_IS < 5)]
         print(f"IS gate passers: {len(gate)}; of those also passing on VAL: "
@@ -133,23 +176,30 @@ def optimise(sid, max_combos=300, objective="pfR_IS", min_n_is=60):
 
 
 def robustness(sid, params, exit_tpl=None):
-    """median IS PF over the +-1-step neighbourhood of each parameter"""
+    """median IS PF over the sorted +-1-step neighbourhood of each parameter (X3)"""
     mod = load_strategy(sid)
     pfs = []
-    for k, grid in mod.PARAMS.items():
-        if params[k] not in grid:
-            continue
-        i = grid.index(params[k])
-        for j in (i - 1, i + 1):
-            if 0 <= j < len(grid):
-                q = dict(params); q[k] = grid[j]
-                sig = visible(mod.signals(ctx(), **q))
-                if exit_tpl:
-                    sig = apply_exit(sig, exit_tpl)
-                tr = bt1s.run(ctx(), sig)
-                m = bt1s.metrics(tr[tr.period == "IS"])
-                pfs.append(m.get("pf", np.nan))
+    for q in _neighbours(mod, params):
+        sig = visible(mod.signals(ctx(), **q))
+        if exit_tpl:
+            sig = apply_exit(sig, exit_tpl)
+        tr = bt1s.run(ctx(), sig)
+        m = bt1s.metrics(tr[tr.period == "IS"])
+        pfs.append(m.get("pf", np.nan))
     return float(np.nanmedian(pfs)) if pfs else np.nan, pfs
+
+
+def code_hash(sid):
+    """hash of the strategy file plus shared helper modules in strategies/ (X6)"""
+    import glob
+    h = hashlib.sha256()
+    files = [os.path.join(ROOT, "strategies", f"{sid}.py")]
+    files += sorted(f for f in glob.glob(os.path.join(ROOT, "strategies", "*.py"))
+                    if os.path.basename(f).startswith("_") or "util" in os.path.basename(f))
+    files += [os.path.join(ROOT, "bt1s.py")]
+    for f in files:
+        h.update(open(f, "rb").read())
+    return h.hexdigest()[:16]
 
 
 def frozen_path(sid):
@@ -157,9 +207,8 @@ def frozen_path(sid):
 
 
 def freeze(sid, params, exit_tpl=None, note=""):
-    src = open(os.path.join(ROOT, "strategies", f"{sid}.py")).read()
     rec = dict(id=sid, params=params, exit=exit_tpl, note=note,
-               code_sha=hashlib.sha256(src.encode()).hexdigest()[:16],
+               code_sha=code_hash(sid), hash_scheme="v2",
                frozen_at=pd.Timestamp.utcnow().isoformat(), oos_run=False)
     med, pfs = robustness(sid, params, exit_tpl)
     rec["robust_median_pf_IS"] = med
@@ -173,13 +222,17 @@ def oos(sid):
     if not os.path.exists(fp):
         raise SystemExit(f"{sid} is not frozen; refusing to run OOS")
     rec = json.load(open(fp))
-    src = open(os.path.join(ROOT, "strategies", f"{sid}.py")).read()
-    if hashlib.sha256(src.encode()).hexdigest()[:16] != rec["code_sha"]:
-        raise SystemExit("strategy code changed after freezing; refusing to run OOS")
     if rec.get("oos_run"):
         print("[oos] already run once; showing stored result")
         print(pd.DataFrame(rec["oos_result"]).round(2).to_string())
         return rec
+    if rec.get("hash_scheme") == "v2":
+        ok_hash = code_hash(sid) == rec["code_sha"]
+    else:
+        src = open(os.path.join(ROOT, "strategies", f"{sid}.py")).read()
+        ok_hash = hashlib.sha256(src.encode()).hexdigest()[:16] == rec["code_sha"]
+    if not ok_hash:
+        raise SystemExit("strategy/helper/engine code changed after freezing; refusing to run OOS")
     mod = load_strategy(sid)
     sig = mod.signals(ctx(), **rec["params"])
     if rec.get("exit"):

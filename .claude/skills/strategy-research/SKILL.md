@@ -34,6 +34,8 @@ can be coded without guessing. You only research; you never backtest.
 - Prefer ideas with explicit rules. Turn vague ideas into precise rules yourself, and mark every
   rule you made up in `assumptions`.
 - Intraday only: every position closes by 21:00 UTC at the latest.
+- **Exclude ICT and SMC methods** (fair value gaps, order blocks, liquidity sweeps/raids, Judas
+  swing, Silver Bullet, killzone models, BOS/CHoCH). The user already has these.
 - Treat claimed win rates and returns as marketing until tested. Record them only as `claimed`.
 - Never invent sources. Every card cites at least one real URL from your search results.
 - Aim for diversity across mechanisms (breakout, mean reversion, momentum, session/time,

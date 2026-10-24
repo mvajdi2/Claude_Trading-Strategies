@@ -16,8 +16,8 @@ Merged duplicates: implement one strategy module per line; card variants become 
 11. shanghai_open: practitioners-shanghai-open-orb + academic-shfe-open-momentum
 
 ## Batch B: reversal, structure, mean reversion
-1. asian_range_fakeout: marketplaces-asian-range-fakeout-h1 + practitioners-asian-range-false-break-fade + books-ict-judas-asia-sweep
-2. level_sweep_reclaim: books-turtle-soup-15m + marketplaces-prev-candle-sweep-m15 + practitioners-pdh-pdl-sweep-reclaim (level type as a parameter)
+1. asian_range_fakeout: marketplaces-asian-range-fakeout-h1 + practitioners-asian-range-false-break-fade (ICT Judas variant excluded)
+2. level_sweep_reclaim: books-turtle-soup-15m only (SMC sweep variants excluded)
 3. raschke_8020: books-raschke-8020-daily
 4. wyckoff_spring: books-wyckoff-spring-upthrust-5m
 5. mp_80pct: books-mp-80pct-rule
@@ -26,8 +26,8 @@ Merged duplicates: implement one strategy module per line; card variants become 
 8. vwap_sd_fade: practitioners-vwap-3sd-fade
 9. overreaction_fade: academic-overreaction-fade-volnorm
 10. round_level: marketplaces-round20-level-fade + practitioners-round20-level-reaction (bounce vs break + placebo offset)
-11. silver_bullet: books-ict-silver-bullet-ny + practitioners-ict-silver-bullet-fvg (market-entry variant included)
-12. taylor_sweep: marketplaces-taylor-sweep-1m
+11. ~~silver_bullet~~ (ICT, excluded by user)
+12. ~~taylor_sweep~~ (SMC liquidity sweep, excluded by user)
 
 ## Batch C: momentum, time-of-day, trend
 1. last30_momentum: academic-rest-of-day-last30-momentum
@@ -44,3 +44,5 @@ Merged duplicates: implement one strategy module per line; card variants become 
 12. macro_shock: academic-macro-shock-15m-drift (only if NFP/CPI release dates can be listed reliably; otherwise skip and say so)
 
 Deferred: academic-usd-residual-catchup (needs EURUSD data).
+
+**User instruction:** no ICT/SMC strategies (FVG, order blocks, liquidity sweeps, Judas, Silver Bullet, killzones).
