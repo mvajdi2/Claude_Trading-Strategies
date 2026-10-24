@@ -46,6 +46,21 @@ X1–X7):
 - PARAMS lists keep the card default first. The harness sorts every grid internally for the
   plateau and the neighbourhood (`_sorted_grid`).
 
+**Deviation from the protocol's selection rule (added after the boss review).** The protocol says
+to choose the top **plateau** setting (median IS objective over the setting and its sorted ±1
+neighbours). I chose the top single-row IS PF(R) with n_IS ≥ 60 instead. Under the plateau rule
+the stage-1 finalists would have been the following. VAL numbers are deliberately left out: they
+were not looked at, and are not used.
+- asian_drift: lookback 120, t_min 0.0, window 08–20 (plateau 1.33; IS PF(R) 1.34, n 177).
+- ema_pullback_adx: adx_min 25, stop_atr 1.0, dead_filter on (plateau 1.35; IS PF(R) 1.36, n 132).
+- avwap_london: anchor 23:00, trend_frac 0.6, touch_band 0.0, pullback (plateau 1.00; IS PF(R)
+  1.01, n 182). It would have been rejected on IS (PF(R) < 1.3).
+
+**ema_pullback_adx sl tie-break.** With the scalp_be template (tp1 0.25, f1 0.5, tp 3, BE), sl 1.0
+gave IS PF(R) 1.812 and sl 2.0 gave 1.797. I treated these as a near-tie and broke it on other IS
+columns only: sl 2.0 has lower IS DD (0.58 % vs 1.16 %), higher IS $ PF (1.57 vs 1.44) and higher
+IS WR (87.9 vs 82.8). No VAL information was used.
+
 ## Screen (card defaults, after the audit fixes)
 
 | Strategy | IS n | WR % | PF | PF(R) | DD % | tr/wk | VAL PF | Screen |
