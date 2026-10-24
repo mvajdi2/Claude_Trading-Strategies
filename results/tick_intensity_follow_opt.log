@@ -1,0 +1,20 @@
+/home/user/xau_hf/strategies/tick_intensity_follow.py:58: RuntimeWarning: All-NaN slice encountered
+  smed = np.nanmedian(sp, axis=1)
+[optimise] tick_intensity_follow: 267 combos tested (108 stage-1 + 159 exit) in 33s; 210 with n_IS >= 60
+     zN_min  imb_min  s_cap  hold_min    mode exit_kind                                exit  plateau  n_IS  wr_IS  pf_IS  pfR_IS  dd_pct_IS  per_wk_IS  n_VAL  wr_VAL  pf_VAL  pfR_VAL  dd_pct_VAL
+233     4.0      0.1    2.0         5  follow     fixed              {"sl": 2.0, "tp": 3.0}      NaN   325  49.54   0.87    0.91      10.89       6.77    113   47.79    1.06     0.89        5.07
+228     4.0      0.1    2.0         5  follow     fixed              {"sl": 1.5, "tp": 3.0}      NaN   325  47.69   0.89    0.89      12.30       6.77    113   46.90    1.02     0.87        6.29
+175     4.0      0.1    1.5         5  follow     fixed              {"sl": 1.5, "tp": 3.0}      NaN   291  48.45   1.00    0.89      10.94       6.06     95   48.42    0.90     0.75        5.95
+180     4.0      0.1    1.5         5  follow     fixed              {"sl": 2.0, "tp": 3.0}      NaN   291  50.17   0.97    0.88      10.12       6.06     95   50.53    0.96     0.81        4.21
+179     4.0      0.1    1.5         5  follow     fixed              {"sl": 2.0, "tp": 2.0}      NaN   291  51.20   0.93    0.87      10.11       6.06     95   54.74    1.02     1.00        3.62
+174     4.0      0.1    1.5         5  follow     fixed              {"sl": 1.5, "tp": 2.0}      NaN   291  49.48   0.96    0.87      10.98       6.06     95   51.58    0.95     0.86        5.60
+170     4.0      0.1    1.5         5  follow     fixed              {"sl": 1.0, "tp": 3.0}      NaN   291  45.02   0.94    0.86      14.62       6.06     95   43.16    0.85     0.62       11.65
+173     4.0      0.1    1.5         5  follow     fixed              {"sl": 1.5, "tp": 1.5}      NaN   291  50.86   0.93    0.85      10.97       6.06     95   51.58    0.88     0.75        6.58
+223     4.0      0.1    2.0         5  follow     fixed              {"sl": 1.0, "tp": 3.0}      NaN   325  44.00   0.87    0.85      17.26       6.77    113   40.71    0.91     0.64       14.09
+232     4.0      0.1    2.0         5  follow     fixed              {"sl": 2.0, "tp": 2.0}      NaN   325  50.15   0.80    0.84      11.13       6.77    113   50.44    1.07     0.99        4.77
+126     4.0      0.1    1.5        10  follow     fixed              {"sl": 2.0, "tp": 2.0}      NaN   291  47.77   0.88    0.84      16.06       6.06     95   46.32    0.93     0.86        5.15
+178     4.0      0.1    1.5         5  follow     fixed              {"sl": 2.0, "tp": 1.5}      NaN   291  52.58   0.90    0.84       9.78       6.06     95   54.74    0.94     0.87        4.20
+266     4.0      0.1    2.0         5  follow     trail  {"sl": 2.0, "trail": 1.5, "tp": 0}      NaN   325  45.23   0.91    0.84      11.59       6.77    113   42.48    0.97     0.68        7.09
+227     4.0      0.1    2.0         5  follow     fixed              {"sl": 1.5, "tp": 2.0}      NaN   325  48.31   0.82    0.83      12.51       6.77    113   49.56    1.01     0.95        5.89
+231     4.0      0.1    2.0         5  follow     fixed              {"sl": 2.0, "tp": 1.5}      NaN   325  51.69   0.78    0.82      10.68       6.77    113   51.33    1.02     0.89        5.20
+IS gate passers: 0; of those also passing on VAL: 0
