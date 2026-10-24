@@ -6,6 +6,8 @@ OR_high + k*stretch / OR_low - k*stretch live from OR end to 12:00 UTC, OCO, 1 t
 Filters: prior day NR4/NR7 (23:00-21:00 bars), skip if OR width > 4*ATR14(15m).
 Default exit: stop at the opposite OR side (capped 1.5*ATR14(15m)), no target, flat 12:00 UTC.
 unit = default stop distance (USD).
+Rerun A-2: full card grid (108 combos) with the card exit in stage 1; the card target variant
+1.0*(OR width + stretch) did not fit the 141-combo stage-1 budget (fixed-target templates cover it).
 """
 import numpy as np, pandas as pd
 import bt1s
@@ -13,8 +15,8 @@ from strategies import batcha_util as U
 
 PARAMS = {
     "or_minutes": [15, 5, 30],
-    "stretch_mult": [1.0, 0.5, 1.5],
-    "stretch_lookback": [10, 20],
+    "stretch_mult": [1.0, 0.5, 1.5, 2.0],
+    "stretch_lookback": [10, 5, 20],
     "nr_filter": ["NR4", "none", "NR7"],
     "exit_h": [12],
 }

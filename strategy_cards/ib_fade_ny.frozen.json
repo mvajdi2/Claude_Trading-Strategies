@@ -1,0 +1,18 @@
+{
+ "id": "ib_fade_ny",
+ "params": {
+  "ib_start": "ny0820",
+  "ib_minutes": 30,
+  "wide_mult": 1.2
+ },
+ "exit": {
+  "sl": 2.0,
+  "tp": 3.0
+ },
+ "note": "Rerun A-3 (fade half). Finalist by staged harness + pre-written rule: best stage-1 plateau (0.80, card exit IS PF(R) 1.25), template sl2/tp3 IS PF(R) 1.45 with adjacent-template median 1.37. Final VAL look PF 2.13 (n34). Gates not met on IS/VAL.",
+ "code_sha": "e15545d760d1aeea",
+ "hash_scheme": "v2",
+ "frozen_at": "2026-10-24T00:12:30.809061+00:00",
+ "oos_run": false,
+ "robust_median_pf_IS": 1.4151180339830929
+}

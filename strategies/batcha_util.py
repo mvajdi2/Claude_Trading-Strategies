@@ -151,3 +151,31 @@ def vol_state_pct(ctx, tds, lookback=250, min_hist=60):
     rv = realized_var(ctx)
     pct = rv.rolling(lookback, min_periods=min_hist).rank(pct=True)
     return prev_rows(pct.to_frame("p"), tds)["p"].values
+
+
+# SHFE / SGE closed weekdays 2025-2026 (PRC State Council holiday schedule; weekends are not listed).
+SHFE_HOLIDAYS = pd.to_datetime([
+    # 2025: New Year; Spring Festival Jan 28-Feb 4; Qingming Apr 4; Labour Day May 1-5;
+    # Dragon Boat May 31-Jun 2; National Day + Mid-Autumn Oct 1-8
+    "2025-01-01", "2025-01-28", "2025-01-29", "2025-01-30", "2025-01-31", "2025-02-03", "2025-02-04",
+    "2025-04-04", "2025-05-01", "2025-05-02", "2025-05-05", "2025-06-02",
+    "2025-10-01", "2025-10-02", "2025-10-03", "2025-10-06", "2025-10-07", "2025-10-08",
+    # 2026: New Year Jan 1-3; Spring Festival Feb 15-23; Qingming Apr 4-6; Labour Day May 1-5;
+    # Dragon Boat Jun 19-21; Mid-Autumn Sep 25-27; National Day Oct 1-7
+    "2026-01-01", "2026-01-02", "2026-02-16", "2026-02-17", "2026-02-18", "2026-02-19", "2026-02-20",
+    "2026-02-23", "2026-04-06", "2026-05-01", "2026-05-04", "2026-05-05", "2026-06-19",
+    "2026-09-25", "2026-10-01", "2026-10-02", "2026-10-05", "2026-10-06", "2026-10-07",
+]).values.astype("datetime64[s]").astype(np.int64) // DAY
+
+
+def shfe_closed(td, night=False):
+    """True if SHFE is closed on calendar day td (Beijing date = UTC date for 01:00-15:00 UTC).
+    night=True: the night session (21:00 Beijing) belongs to the next trading day and is not held
+    on the evening before a holiday, so also closed if the next weekday is a holiday."""
+    td = np.asarray(td, np.int64)
+    c = np.isin(td, SHFE_HOLIDAYS)
+    if night:
+        wd = (td + 3) % 7                     # 0 = Monday (1970-01-01 was a Thursday)
+        nxt = td + np.where(wd == 4, 3, 1)    # Friday -> Monday
+        c |= np.isin(nxt, SHFE_HOLIDAYS)
+    return c

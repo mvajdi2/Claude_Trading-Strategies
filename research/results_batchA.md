@@ -43,3 +43,23 @@ Code: `strategies/<name>.py` plus the shared helper `strategies/batcha_util.py`.
 - pdh_pdl_breakout with `close_beyond=True` (15 m close), 07:00–18:00, scalp_be sl 3, tp1 0.25 was 4th by IS PF(R) (2.98) and had VAL PF 2.49 (n 30). It was not the IS-selected finalist, so it was **not** frozen or OOS-tested. Promoting it would mean choosing on VAL.
 - Card adaptations: Shanghai anchors are fixed UTC (no DST in China); NY ORB and the `ny0930` IB variant use America/New_York with DST. noise_area_momentum's VWAP/band trailing exit is precomputed from closed 30/15/60 m bars and passed as `hold`; vol-target sizing is not modelled. bbkc_squeeze's default exit uses the card's 2R variant, because the indicator trail cannot be expressed in the engine.
 - Combination counts exclude the single screen run per strategy. asian_range_breakout is over the 300 budget (420) because of an early 120-combo sample taken before the 300 run.
+
+---
+
+# Rerun after review (research/reviews/batchA.md, harness 2ca67cf)
+
+Scope: A-1 london_range_ny_break + london_range_retest, A-2 crabel_orb_stretch, A-3 ib_extension_ny + ib_fade_ny,
+A-4 bbkc_squeeze, A-5 noise_area_momentum, A-6 shanghai_orb + shfe_open_mom. All other Batch A verdicts stand.
+
+## Selection rule (written before any rerun was executed)
+1. Screen at card defaults (only the IS row is read).
+2. `evaluate.optimise(id, 300)`: stage 1 = full sorted PARAMS grid with the card exit (≤ 141 combos), stage 2 = all 53
+   exit templates on the harness's top-3 plateau settings. The optimise printout is suppressed; a selector script reads
+   only IS columns until the finalist is fixed.
+3. Finalist setting = stage-1 row with n_IS ≥ 60 and the highest plateau score (median IS PF(R) over the setting and its
+   sorted ±1 neighbours); ties broken by the row's own IS PF(R).
+4. Exit = card exit, unless a stage-2 template on that same setting (n_IS ≥ 60) has a higher IS PF(R) **and** the median IS
+   PF(R) of its adjacent templates (same template family, ±1 step in sl or in tp — trail distance for the trail family)
+   is ≥ 1.3; then the best such template.
+5. Only then is the finalist's VAL row printed. This is the strategy's final VAL look. If IS PF(R) ≥ 1.3 and VAL PF ≥ 1.3
+   → freeze, commit, run OOS once. Otherwise the strategy is closed.

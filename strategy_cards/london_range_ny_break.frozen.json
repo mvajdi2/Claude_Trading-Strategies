@@ -1,0 +1,20 @@
+{
+ "id": "london_range_ny_break",
+ "params": {
+  "london_start": 8,
+  "ny_start": "ny0830",
+  "ny_bars": 3,
+  "rng_atr_max": 2.5,
+  "target_r": 1.5
+ },
+ "exit": {
+  "sl": 2.0,
+  "tp": 1.5
+ },
+ "note": "Rerun A-1 (break mode). Finalist by staged harness + pre-written rule: best stage-1 plateau (1.36), template sl2/tp1.5 beats card (IS PF(R) 1.74 vs 1.43; adjacent-template median 1.52). Final VAL look PF 1.68 (n20). Gates not met on IS/VAL.",
+ "code_sha": "7d27b3b715b25cf0",
+ "hash_scheme": "v2",
+ "frozen_at": "2026-10-24T00:12:03.881107+00:00",
+ "oos_run": false,
+ "robust_median_pf_IS": 1.8052425765537803
+}
