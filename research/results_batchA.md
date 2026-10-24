@@ -63,3 +63,32 @@ A-4 bbkc_squeeze, A-5 noise_area_momentum, A-6 shanghai_orb + shfe_open_mom. All
    is ≥ 1.3; then the best such template.
 5. Only then is the finalist's VAL row printed. This is the strategy's final VAL look. If IS PF(R) ≥ 1.3 and VAL PF ≥ 1.3
    → freeze, commit, run OOS once. Otherwise the strategy is closed.
+
+## Rerun results (final VAL look per strategy)
+
+Combos = earlier run + rerun (stage 1 + stage 2). For split modules, the earlier run was shared with the parent id.
+
+| Strategy | Combos | Finalist (IS-selected by the rule above) | Exit | IS n / WR / PF / PF(R) / DD% / tr/wk | VAL n / WR / PF / PF(R) / DD% / tr/wk | OOS n / WR / PF / PF(R) / DD% / tr/wk | Verdict |
+|---|---|---|---|---|---|---|---|
+| london_range_ny_break | 300 (mixed, earlier) + 267 = 567 | London 08–12, ny_start ny0830, 3 bars, range ≤ 2.5×ATR30, target_r 1.5 (plateau 1.36) | template sl 2.0, tp 1.5 (adjacent median 1.52; card exit IS PF(R) 1.43) | 67 / 59.7 / 1.86 / 1.74 / 1.89 / 1.30 | 20 / 70.0 / 1.68 / 2.52 / 0.50 / 1.07 | 28 / 39.3 / 0.47 / 0.58 / 2.59 / 1.40 (stress PF 0.45) | **OOS FAIL** (neighbourhood median IS PF 1.81) |
+| london_range_retest | (shared 300) + 195 | retest_win 24, stop_atr 1.0, target_r 3.0 (plateau 1.31) | scalp_be sl 2, tp1 0.5 (50 %), tp 3, BE (adjacent median 1.36) | 147 / 81.0 / 1.46 / 1.39 / 2.38 / 2.84 | 60 / 73.3 / 0.57 / 0.59 / 3.16 / 2.96 | – | CLOSED at VAL |
+| crabel_orb_stretch | 300 + 267 = 567 | OR 5 m, stretch 0.5×, lookback 10, NR4 (plateau 1.34) | card (opposite-OR stop, no target, flat 12:00) | 67 / 37.3 / 1.13 / 1.34 / 4.81 / 1.44 | 33 / 24.2 / 0.26 / 0.28 / 8.36 / 1.67 | – | CLOSED at VAL |
+| ib_extension_ny | 120 (mixed, earlier) + 213 = 333 | ny0930, IB 30 m, narrow 0.85, ext 1.5 (plateau 0.96) | card | 75 / 36.0 / 1.04 / 0.96 / 4.16 / 1.59 | 36 / 36.1 / 1.01 / 0.92 / 4.44 / 1.80 | – | CLOSED (IS PF(R) < 1.3) |
+| ib_fade_ny | (shared 120) + 177 | ny0820, IB 30 m, wide 1.2 (plateau 0.80; card exit IS PF(R) 1.25) | template sl 2.0, tp 3.0 (adjacent median 1.37) | 91 / 51.6 / 1.58 / 1.45 / 4.58 / 1.94 | 34 / 52.9 / 2.13 / 1.30 / 2.30 / 1.65 | 32 / 53.1 / 1.88 / 1.50 / 1.51 / 1.68 (stress PF 1.86, DD 1.51) | **OOS FAIL** (WR, PF; neighbourhood median IS PF 1.42) |
+| bbkc_squeeze | 120 + 267 = 387 | 15 m, min_sq 6, KC 2.0, trail exit, squeeze-range stop (plateau 1.38) | card (SMA20 close-through trail) | 163 / 41.7 / 1.44 / 1.38 / 2.67 / 3.14 | 63 / 34.9 / 0.92 / 0.96 / 2.42 / 3.00 | – | CLOSED at VAL |
+| noise_area_momentum | 120 + 231 = 351 | anchor 07:00, lookback 20, band 1.5, checks 15 m, no gap adj (plateau 0.99) | card (VWAP/band trail, 3-unit catastrophe stop) | 438 / 27.6 / 1.00 / 1.00 / 8.74 / 9.15 | 186 / 23.7 / 0.82 / 0.82 / 4.40 / 8.86 | – | CLOSED (IS PF(R) < 1.3) |
+| shanghai_orb | (shared 120) + 267 | range 02:30 + 30 m, stop = opposite range side, target 2R (plateau 1.29) | card | 237 / 49.8 / 1.47 / 1.38 / 3.83 / 4.58 | 93 / 44.1 / 0.91 / 0.75 / 5.07 / 4.52 | – | CLOSED at VAL |
+| shfe_open_mom | (shared 120) + 177 | night open 13:00–13:30, q 0.5, held to 15:00 (plateau 1.08) | card (stop at start price) | 121 / 35.5 / 1.25 / 1.26 / 14.82 / 2.87 | 48 / 20.8 / 0.57 / 0.54 / 8.56 / 2.37 | – | CLOSED (IS PF(R) < 1.3) |
+
+Rerun notes
+- **No OOS PASS.** london_range_ny_break broke down out of sample (PF 0.47). ib_fade_ny stayed profitable out of sample (PF 1.88, WR 53 %, n 32), but it is nowhere near WR > 75 / PF > 3.
+- noise_area_momentum flip check: at defaults there are 5 same-check flip signals, and all 5 were executed both before and after the fix. The old code did not drop flips: its exit filled at the decision second s, so the flip filled at s+1. What the old code did have is the 0 s exit look-ahead. That is now fixed: the exit fills at s+1 and the flip at s+2.
+- Harness quirk: stage 2 runs templates on the top-3 plateau rows *without* requiring each row's own n_IS ≥ 60. For ib_extension_ny, bbkc_squeeze and crabel_orb_stretch, the rule's finalist (n_IS ≥ 60) was not among those three, so it had no templates and kept the card exit, as the written rule says.
+- Card changes in this rerun:
+  - london_range_ny_break: BB target capped at the entry-bar band; the BB-zone rule is documented.
+  - london_range_retest: card filter range > 2×ATR14(1h)×5 added.
+  - SHFE holidays 2025–26 skipped in shanghai_orb and shfe_open_mom; the night session is also skipped on the eve of a holiday. The list was checked against the SHFE 2026 notice.
+  - shfe night variant: the card's "exclude US data days" rule is not implemented, because the repo has no release calendar.
+  - noise_area_momentum: anchor trimmed to 07:00 to fit the 141-combo budget.
+  - crabel_orb_stretch: the card's target variant did not fit the 141-combo budget.
+- The old `shanghai_open.py` is kept for the record. It is superseded by shanghai_orb and shfe_open_mom.

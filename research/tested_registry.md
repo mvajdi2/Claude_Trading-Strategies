@@ -50,3 +50,17 @@ Batch A observation: scalp + break-even exits produce 85–95 % IS WR on breakou
 | B12 | taylor_sweep (sweep + VWAP/EMA reclaim) | 0 | – | SKIPPED – ICT/SMC excluded by user | – |
 
 Batch B observation: no reversal or mean-reversion idea reached PF ≥ 1.5 on IS with n ≥ 60. The round-number "effect" equals its placebo.
+
+### Batch A rerun after review (research/reviews/batchA.md; staged harness 2ca67cf; final VAL look each)
+
+| ID | Idea | Combos (earlier + rerun) | Finalist IS / VAL / OOS (PF, WR, n) | Verdict |
+|---|---|---|---|---|
+| A6 | london_range_ny_break (break mode, DST-aware ny0830 start) | 300 + 267 | IS 1.86, 59.7, 67 / VAL 1.68, 70.0, 20 / OOS 0.47, 39.3, 28 | OOS FAIL |
+| A6b | london_range_retest (split from A6) | shared + 195 | IS 1.46, 81.0, 147 / VAL 0.57 | CLOSED at VAL |
+| A2 | crabel_orb_stretch (card exit in stage 1) | 300 + 267 | IS 1.13 (PF(R) 1.34), 37.3, 67 / VAL 0.26 | CLOSED at VAL |
+| A8 | ib_extension_ny (break only, native-stop unit, DST starts) | 120 + 213 | IS PF(R) 0.96 | CLOSED (IS) |
+| A8b | ib_fade_ny (split from A8) | shared + 177 | IS 1.58, 51.6, 91 / VAL 2.13, 52.9, 34 / OOS 1.88, 53.1, 32 | OOS FAIL |
+| A9 | bbkc_squeeze (card trail exit + card-2 stop) | 120 + 267 | IS 1.44, 41.7, 163 / VAL 0.92 | CLOSED at VAL |
+| A10 | noise_area_momentum (exit-latency fix, gap_adj) | 120 + 231 | IS PF(R) 1.00 | CLOSED (IS) |
+| A11a | shanghai_orb (split from shanghai_open; SHFE holidays) | shared + 267 | IS 1.47, 49.8, 237 / VAL 0.91 | CLOSED at VAL |
+| A11b | shfe_open_mom (split; night variant; SHFE holidays) | shared + 177 | IS PF(R) 1.26 | CLOSED (IS) |
