@@ -1,0 +1,22 @@
+{
+ "id": "ema_pullback_adx",
+ "params": {
+  "adx_min": 30,
+  "stop_atr": 1.5,
+  "dead_filter": true
+ },
+ "exit": {
+  "sl": 2.0,
+  "tp1": 0.25,
+  "f1": 0.5,
+  "tp": 3.0,
+  "be": 1
+ },
+ "note": "Batch C. IS-selected: best IS PF(R) in staged search (18 stage-1 + 159 exit = 177 combos); sl 1.0/2.0 neighbours equal (1.81/1.80). IS gates not met (PF 1.57); frozen for frontier honesty since IS PF(R) >= 1.3 and VAL PF >= 1.3. Post-audit VAL check is the final VAL look.",
+ "code_sha": "5be4739bce5e9c13",
+ "hash_scheme": "v3",
+ "hashed_helpers": [],
+ "frozen_at": "2026-10-24T00:18:19.526786+00:00",
+ "oos_run": false,
+ "robust_median_pf_IS": 1.4016087519904383
+}
