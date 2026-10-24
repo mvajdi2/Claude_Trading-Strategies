@@ -1,0 +1,18 @@
+[optimise] common_factor_residual: 267 combos tested (108 stage-1 + 159 exit) in 25s; 255 with n_IS >= 60
+     EntryZ  Zwin  ExitZ         members exit_kind                                exit  plateau  n_IS  wr_IS  pf_IS  pfR_IS  dd_pct_IS  per_wk_IS  n_VAL  wr_VAL  pf_VAL  pfR_VAL  dd_pct_VAL
+112     1.5    16    0.3  XAU,XAG,EURUSD     fixed              {"sl": 0.5, "tp": 3.0}      NaN   371  38.01   1.19    1.11      11.65       7.44    112   42.86    1.08     1.11        7.04
+170     1.5    32    0.3  XAU,XAG,EURUSD     fixed              {"sl": 1.0, "tp": 3.0}      NaN   217  46.54   1.09    1.11       6.84       4.36     64   43.75    1.60     1.20        2.47
+210     1.5    32    0.3  XAU,XAG,EURUSD     trail  {"sl": 1.0, "trail": 1.5, "tp": 0}      NaN   217  45.16   1.05    1.11       7.52       4.36     64   40.62    1.58     1.13        2.73
+260     2.0    32    0.3  XAU,XAG,EURUSD     trail  {"sl": 0.5, "trail": 1.5, "tp": 0}      NaN   118  27.97   1.22    1.09      16.79       2.37     27   33.33    1.20     0.90        3.65
+153     1.5    16    0.3  XAU,XAG,EURUSD     trail  {"sl": 0.5, "trail": 1.0, "tp": 0}      NaN   371  39.08   1.20    1.09      14.76       7.44    112   42.86    1.10     1.12        5.32
+160     1.5    16    0.3  XAU,XAG,EURUSD     trail  {"sl": 2.0, "trail": 1.5, "tp": 0}      NaN   371  52.02   1.21    1.09       4.22       7.44    112   52.68    0.89     1.04        2.08
+154     1.5    16    0.3  XAU,XAG,EURUSD     trail  {"sl": 0.5, "trail": 1.5, "tp": 0}      NaN   371  38.27   1.18    1.08      13.84       7.44    112   42.86    1.06     1.11        5.92
+27      1.5    32    0.3  XAU,XAG,EURUSD      card                                         0.99   217  45.62   1.04    1.08       8.99       4.36     64   43.75    1.68     1.36        2.47
+111     1.5    16    0.3  XAU,XAG,EURUSD     fixed              {"sl": 0.5, "tp": 2.0}      NaN   371  38.27   1.16    1.08      10.62       7.44    112   42.86    1.04     1.08        7.04
+156     1.5    16    0.3  XAU,XAG,EURUSD     trail  {"sl": 1.0, "trail": 1.0, "tp": 0}      NaN   371  46.09   1.20    1.08       8.39       7.44    112   47.32    0.97     1.01        3.55
+159     1.5    16    0.3  XAU,XAG,EURUSD     trail  {"sl": 2.0, "trail": 1.0, "tp": 0}      NaN   371  46.09   1.20    1.08       4.29       7.44    112   47.32    0.97     1.01        1.79
+169     1.5    32    0.3  XAU,XAG,EURUSD     fixed              {"sl": 1.0, "tp": 2.0}      NaN   217  47.47   1.03    1.08       6.56       4.36     64   43.75    1.48     1.01        3.06
+122     1.5    16    0.3  XAU,XAG,EURUSD     fixed              {"sl": 1.5, "tp": 3.0}      NaN   371  54.99   1.19    1.08       5.32       7.44    112   53.57    0.78     0.93        4.31
+18      1.5    16    0.6  XAU,XAG,EURUSD      card                                         0.97   388  51.55   1.16    1.07       9.84       7.78    117   55.56    1.01     1.06        3.67
+36      2.0     8    0.0  XAU,XAG,EURUSD      card                                         0.97   306  50.98   1.25    1.07       6.76       6.14     89   55.06    1.62     1.27        1.97
+IS gate passers: 0; of those also passing on VAL: 0
