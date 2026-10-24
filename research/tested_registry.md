@@ -64,3 +64,22 @@ Batch B observation: no reversal or mean-reversion idea reached PF ≥ 1.5 on IS
 | A10 | noise_area_momentum (exit-latency fix, gap_adj) | 120 + 231 | IS PF(R) 1.00 | CLOSED (IS) |
 | A11a | shanghai_orb (split from shanghai_open; SHFE holidays) | shared + 267 | IS 1.47, 49.8, 237 / VAL 0.91 | CLOSED at VAL |
 | A11b | shfe_open_mom (split; night variant; SHFE holidays) | shared + 177 (171 distinct: exit_utc is a no-op for the night anchor) | IS PF(R) 1.26 | CLOSED (IS) |
+
+### Batch C: momentum, time-of-day, trend (research/results_batchC.md; staged harness 2ca67cf after early audit; final VAL look each)
+
+| ID | Idea | Combos (pre-audit + staged) | Finalist IS / VAL / OOS (PF, WR, n) | Verdict | Where |
+|---|---|---|---|---|---|
+| C1 | last30_momentum: rest-of-day return → last 30 min before COMEX settle (+ realised-vol filter, US holiday skip) | 120 + 207 | IS 1.55 (PF(R) 1.41), 89.8, 88 / VAL 0.73, 81.3, 48 | REJECT at VAL | `strategies/last30_momentum.py` |
+| C2 | first_last_hh: first half-hour (08:20 NY / 07:00 UTC / 18:00 NY) predicts 13:00–13:30 NY | 120 + 195 | IS PF(R) 1.24 (n64) / VAL 0.77 | REJECT (IS) | `strategies/first_last_hh.py` |
+| C3 | asian_drift: Asian-hours long drift, unconditional + adaptive sign (incl. 08–20 day leg) | 300 + 199 | IS 1.53 (PF(R) 1.75), 50.0, 112 / VAL 0.75, 41.2, 102 | REJECT at VAL (IS = long beta) | `strategies/asian_drift.py` |
+| C4 | pmfix: London open → PM fix after strong Asia, fade/follow | 120 + 24 + 183 | follow: IS 1.58 (PF(R) 1.82), 61.2, 67 / VAL 1.09, 55.6, 27; fade loses on IS | REJECT at VAL | `strategies/pmfix.py` |
+| C5 | fomc_drift: post-FOMC statement 30-min drift into the close (Fed-calendar dates) | 120 (discarded) | screen IS n 6 | INELIGIBLE (trade count, X7) | `strategies/fomc_drift.py` |
+| C6 | tsmom_day: daily EMA trend sign held intraday, semivariance filter | 300 + 183 | IS 1.36 (PF(R) 1.56), 57.7, 156 (100 % long; equals long-daytime benchmark PF(R) 1.55) / VAL 0.74, 50.5, 95 | REJECT at VAL | `strategies/tsmom_day.py` |
+| C7 | holy_grail: ADX first pullback to EMA, stop entry, swing stop | 120 + 195 | IS 1.66 (PF(R) 1.36), 46.3, 80 / VAL 0.87, 30.6, 36 | REJECT at VAL | `strategies/holy_grail.py` |
+| C8 | ema_pullback_adx: EMA20/50 + ADX + H1 filter, pullback to EMA20 (M15) | 300 + 177 | IS 1.57 (PF(R) 1.80), 87.9, 91 / VAL 3.35, 91.1, 45 / OOS 0.99, 80.0, 40 | OOS FAIL | `strategies/ema_pullback_adx.py`, `strategy_cards/ema_pullback_adx.frozen.json` |
+| C9 | supertrend_rsi: NY Supertrend + RSI 55/45 (5m) | 120 + 186 | IS PF(R) 1.09 (n385) / VAL 1.33 | REJECT (IS) | `strategies/supertrend_rsi.py` |
+| C10 | vwap_cross_mtf: session-VWAP cross + H1/H4 EMA filter (5m) | 120 + 171 | IS PF(R) 1.08 (n324) / VAL 0.98 | REJECT (IS) | `strategies/vwap_cross_mtf.py` |
+| C11 | avwap_london: anchored-VWAP trend pullback / 2σ fade | 120 + 195 | IS 1.20 (PF(R) 1.41), 44.9, 138 / VAL 1.35, 48.4, 62 / OOS 1.56, 45.9, 61 | OOS FAIL | `strategies/avwap_london.py`, `strategy_cards/avwap_london.frozen.json` |
+| C12 | macro_shock: NFP/CPI 15-min shock drift | 0 | – | SKIPPED: release dates not verifiable on bls.gov (403 bot block) | – |
+
+Batch C observation: the time-of-day ideas earn their IS edge from 2025's bull-trend beta (long-daytime benchmark matches) and reverse in VAL 2026. ema_pullback_adx is the only setting that met WR/PF/DD on VAL, and it fell to PF 0.99 in OOS.
