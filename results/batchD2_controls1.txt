@@ -1,0 +1,65 @@
+IS: n_IS=60.000, wr_IS=70.000, pf_IS=0.961, pfR_IS=0.884, dd_pct_IS=3.096, per_wk_IS=1.257
+VAL (final look): n_VAL=27.000, wr_VAL=62.963, pf_VAL=0.726, pfR_VAL=0.729, dd_pct_VAL=2.990, per_wk_VAL=1.350
+--- REAL  (signals 87)
+        n  per_wk     wr    pf   pfR  expR  ret_pct  dd_pct  avg_hold_min
+IS   60.0    1.26  70.00  0.96  0.88 -0.04    -1.13    3.10          5.77
+VAL  27.0    1.35  62.96  0.73  0.73 -0.11    -1.44    2.99          3.66
+long/short split:
+              n  per_wk     wr    pf   pfR  expR  ret_pct  dd_pct  avg_hold_min
+IS_long    28.0    0.62  64.29  0.55  0.59 -0.15    -2.11    2.90          4.62
+IS_short   32.0    0.68  75.00  1.60  1.24  0.06     1.00    1.06          6.79
+VAL_long   15.0    0.84  66.67  0.43  0.54 -0.16    -1.17    1.87          4.19
+VAL_short  12.0    0.72  58.33  1.28  0.90 -0.04    -0.27    1.66          3.01
+--- PLACEBO (matched no-release days, same clock time)  (signals 66)
+        n  per_wk     wr    pf   pfR  expR  ret_pct  dd_pct  avg_hold_min
+IS   41.0    0.86  58.54  0.59  0.63 -0.16    -3.21    3.71          5.12
+VAL  25.0    1.25  60.00  0.69  0.48 -0.23    -2.79    3.65          3.56
+--- CONTROL large_mode_follow {'large_mode': 'follow'}  (signals 72)
+        n  per_wk     wr    pf   pfR  expR  ret_pct  dd_pct  avg_hold_min
+IS   45.0    0.98  44.44  0.85  0.74 -0.15    -3.27    5.17         27.27
+VAL  27.0    1.40  40.74  0.49  0.68 -0.19    -2.54    3.73         30.32
+IS: n_IS=95.000, wr_IS=48.421, pf_IS=1.016, pfR_IS=1.034, dd_pct_IS=7.236, per_wk_IS=1.911
+VAL (final look): n_VAL=42.000, wr_VAL=52.381, pf_VAL=1.452, pfR_VAL=1.556, dd_pct_VAL=2.981, per_wk_VAL=2.297
+--- REAL  (signals 138)
+        n  per_wk     wr    pf   pfR  expR  ret_pct  dd_pct  avg_hold_min
+IS   95.0    1.91  48.42  1.02  1.03  0.02     0.70    7.24         15.50
+VAL  42.0    2.30  52.38  1.45  1.56  0.26     5.52    2.98         11.33
+long/short split:
+              n  per_wk     wr    pf   pfR  expR  ret_pct  dd_pct  avg_hold_min
+IS_long    43.0    0.88  53.49  1.14  1.30  0.15     3.11    3.31         16.80
+IS_short   52.0    1.06  44.23  0.91  0.85 -0.09    -2.34    5.87         14.42
+VAL_long   15.0    0.82  53.33  1.39  1.65  0.27     2.05    1.58         14.76
+VAL_short  27.0    1.51  51.85  1.50  1.51  0.25     3.40    1.96          9.42
+--- PLACEBO (matched no-release days, same clock time)  (signals 75)
+        n  per_wk     wr    pf   pfR  expR  ret_pct  dd_pct  avg_hold_min
+IS   48.0    0.97  33.33  0.71  0.49 -0.36    -8.26   10.06          9.29
+VAL  27.0    1.33  37.04  0.66  0.68 -0.21    -2.77    4.15          5.39
+--- CONTROL mode_break {'mode': 'break'}  (signals 137)
+        n  per_wk     wr    pf   pfR  expR  ret_pct  dd_pct  avg_hold_min
+IS   96.0    1.93  45.83  0.67  0.81 -0.11    -5.24    6.17         12.76
+VAL  39.0    1.92  41.03  0.47  0.43 -0.36    -6.88    6.98          6.36
+--- REAL  (signals 20)
+        n  per_wk      wr            pf           pfR  expR  ret_pct  dd_pct  avg_hold_min
+IS   16.0    0.51   31.25  6.600000e-01  5.200000e-01 -0.32    -2.57    2.96          2.46
+VAL   4.0    0.49  100.00  6.262790e+10  3.502249e+09  0.88     1.76    0.00          3.83
+long/short split:
+              n  per_wk      wr            pf           pfR  expR  ret_pct  dd_pct  avg_hold_min
+IS_long    11.0    0.35   36.36  8.200000e-01  6.400000e-01 -0.21    -1.18    1.60          2.68
+IS_short    5.0    0.21   20.00  3.900000e-01  3.200000e-01 -0.56    -1.41    1.53          1.98
+VAL_long    3.0    0.38  100.00  3.084290e+10  2.177391e+09  0.73     1.09    0.00          4.83
+VAL_short   1.0    1.00  100.00  3.178500e+10  1.324858e+09  1.32     0.66    0.00          0.82
+--- PLACEBO (matched no-release days, same clock time)  (signals 1)
+      n  per_wk   wr   pf  pfR  expR  ret_pct  dd_pct  avg_hold_min
+IS  1.0     1.0  0.0  0.0  0.0 -1.13    -0.56    0.56          0.58
+--- CONTROL all_k0.5_s60 {'event_set': 'all', 'k_imp': 0.5, 's1_sec': 60}  (signals 60)
+        n  per_wk     wr    pf   pfR  expR  ret_pct  dd_pct  avg_hold_min
+IS   43.0    0.96  39.53  0.87  0.87 -0.05    -1.22    3.13          2.50
+VAL  17.0    0.84  47.06  0.66  1.42  0.13     1.09    2.08          2.66
+--- COST stress  (signals 20)
+        n  per_wk     wr            pf           pfR  expR  ret_pct  dd_pct  avg_hold_min
+IS   16.0    0.51   25.0  4.500000e-01  3.300000e-01 -0.49    -3.87    3.87          2.47
+VAL   4.0    0.49  100.0  2.959295e+10  2.100471e+09  0.53     1.05    0.00          4.83
+--- COST raw  (signals 20)
+        n  per_wk      wr            pf           pfR  expR  ret_pct  dd_pct  avg_hold_min
+IS   16.0    0.51   31.25  5.800000e-01  4.500000e-01 -0.40    -3.18    3.32          2.52
+VAL   4.0    0.49  100.00  3.034000e+10  2.077468e+09  0.52     1.04    0.00          4.83

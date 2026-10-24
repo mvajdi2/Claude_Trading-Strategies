@@ -1,0 +1,44 @@
+Traceback (most recent call last):
+  File "/tmp/claude-0/-home-user/405309f6-9439-5eec-81da-30425b05b64c/scratchpad/screen.py", line 4, in <module>
+    rep=E.screen(sid)
+  File "/home/user/xau_hf/evaluate.py", line 79, in screen
+    sig = visible(mod.signals(ctx(), **params))
+                  ~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/home/user/xau_hf/strategies/pre_release_drift.py", line 109, in signals
+    return s[np.isfinite(s.sl) & (s.sl > 0.05)].sort_values("sec").reset_index(drop=True)
+             ~~~~~~~~~~~^^^^^^
+  File "/usr/local/lib/python3.13/dist-packages/pandas/core/generic.py", line 2048, in __array_ufunc__
+    return arraylike.array_ufunc(self, ufunc, method, *inputs, **kwargs)
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.13/dist-packages/pandas/core/arraylike.py", line 402, in array_ufunc
+    result = getattr(ufunc, method)(*inputs, **kwargs)
+TypeError: ufunc 'isfinite' not supported for the input types, and the inputs could not be safely coerced to any supported types according to the casting rule ''safe''
+Traceback (most recent call last):
+  File "/tmp/claude-0/-home-user/405309f6-9439-5eec-81da-30425b05b64c/scratchpad/controls.py", line 28, in <module>
+    tr = run(params, label="REAL")
+  File "/tmp/claude-0/-home-user/405309f6-9439-5eec-81da-30425b05b64c/scratchpad/controls.py", line 17, in run
+    sig = E.visible(mod.signals(ctx, **kw))
+                    ~~~~~~~~~~~^^^^^^^^^^^
+  File "/home/user/xau_hf/strategies/month_end_fix.py", line 49, in signals
+    grp = bds.groupby([(x.year, x.month) for x in bd])
+  File "/usr/local/lib/python3.13/dist-packages/pandas/util/_decorators.py", line 336, in wrapper
+    return func(*args, **kwargs)
+  File "/usr/local/lib/python3.13/dist-packages/pandas/core/series.py", line 2057, in groupby
+    return SeriesGroupBy(
+        obj=self,
+    ...<6 lines>...
+        dropna=dropna,
+    )
+  File "/usr/local/lib/python3.13/dist-packages/pandas/core/groupby/groupby.py", line 1095, in __init__
+    grouper, exclusions, obj = get_grouper(
+                               ~~~~~~~~~~~^
+        obj,
+        ^^^^
+    ...<4 lines>...
+        dropna=self.dropna,
+        ^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/usr/local/lib/python3.13/dist-packages/pandas/core/groupby/grouper.py", line 901, in get_grouper
+    raise KeyError(gpr)
+KeyError: (2024, 12)

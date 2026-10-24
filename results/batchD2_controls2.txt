@@ -1,0 +1,55 @@
+[optimise] macro_shock: 12 combos tested (12 stage-1 + 0 exit) in 6s; 0 with n_IS >= 60
+--- REAL  (signals 15)
+        n  per_wk    wr    pf   pfR  expR  ret_pct  dd_pct  avg_hold_min
+IS   10.0    0.27  40.0  0.49  0.41 -0.34    -1.70    2.33         46.96
+VAL   5.0    0.62  40.0  0.42  0.54 -0.19    -0.47    1.02         49.85
+long/short split:
+             n  per_wk     wr            pf           pfR  expR  ret_pct  dd_pct  avg_hold_min
+IS_long    8.0    0.26   37.5  4.600000e-01  2.100000e-01 -0.50    -2.00    2.00         43.70
+IS_short   2.0    0.16   50.0  5.500000e-01  1.900000e+00  0.31     0.31    0.34         60.00
+VAL_long   4.0    0.50   25.0  1.200000e-01  2.100000e-01 -0.41    -0.81    1.02         47.31
+VAL_short  1.0    1.00  100.0  1.697845e+10  6.906020e+08  0.69     0.35    0.00         60.00
+--- PLACEBO (matched no-release days, same clock time)  (signals 16)
+       n  per_wk     wr    pf   pfR  expR  ret_pct  dd_pct  avg_hold_min
+IS   9.0    0.27  44.44  2.01  2.56  0.96     4.32    1.52         43.09
+VAL  7.0    0.34  28.57  1.12  1.85  0.63     2.15    1.51         26.85
+--- CONTROL s0.5 {'s': 0.5}  (signals 22)
+        n  per_wk     wr    pf   pfR  expR  ret_pct  dd_pct  avg_hold_min
+IS   14.0    0.38  28.57  0.40  0.24 -0.54     -3.7    4.32         34.86
+VAL   8.0    0.47  50.00  0.88  1.61  0.18      0.7    1.02         53.66
+--- CONTROL hold4h {'hold_h': 4.0}  (signals 15)
+        n  per_wk    wr    pf   pfR  expR  ret_pct  dd_pct  avg_hold_min
+IS   10.0    0.27  40.0  1.45  1.37  0.21     1.02    2.07        136.96
+VAL   5.0    0.62  20.0  0.14  0.22 -0.64    -1.59    2.03        122.30
+--- REAL  (signals 13)
+       n  per_wk    wr    pf   pfR  expR  ret_pct  dd_pct  avg_hold_min
+IS   8.0    0.21  25.0  0.35  0.35 -0.37    -1.47    1.57        226.74
+VAL  5.0    0.57  40.0  6.05  3.30  0.58     1.45    0.55        296.04
+long/short split:
+             n  per_wk    wr    pf   pfR  expR  ret_pct  dd_pct  avg_hold_min
+IS_short   8.0    0.21  25.0  0.35  0.35 -0.37    -1.47    1.57        226.74
+VAL_short  5.0    0.57  40.0  6.05  3.30  0.58     1.45    0.55        296.04
+--- PLACEBO (matched no-release days, same clock time)  (signals 23)
+        n  per_wk     wr    pf   pfR  expR  ret_pct  dd_pct  avg_hold_min
+IS   19.0    0.43  36.84  1.66  1.52  0.33     3.07    2.50        160.71
+VAL   4.0    0.30  50.00  1.47  0.81 -0.09    -0.19    1.01        171.54
+--- CONTROL all_days_r5_0 {'r5_min': 0.0}  (signals 19)
+        n  per_wk     wr    pf   pfR  expR  ret_pct  dd_pct  avg_hold_min
+IS   13.0    0.28  23.08  0.23  0.26 -0.46    -2.98    3.07        223.08
+VAL   6.0    0.36  33.33  3.97  1.81  0.31     0.92    0.55        260.70
+--- CONTROL expiry {'event_set': 'expiry'}  (signals 5)
+       n  per_wk     wr    pf   pfR  expR  ret_pct  dd_pct  avg_hold_min
+IS   3.0    0.18  33.33  1.31  1.28  0.10     0.14    0.51        282.09
+VAL  2.0    0.50   0.00  0.00  0.00 -0.13    -0.13    0.13        315.00
+--- CONTROL fnd {'event_set': 'fnd'}  (signals 8)
+       n  per_wk     wr    pf   pfR  expR  ret_pct  dd_pct  avg_hold_min
+IS   5.0    0.14  20.00  0.08  0.07 -0.65    -1.61    1.73        193.52
+VAL  3.0    0.35  66.67  7.42  4.14  1.05     1.58    0.50        283.40
+--- CONTROL reverse {'mode': 'reverse'}  (signals 13)
+       n  per_wk    wr    pf   pfR  expR  ret_pct  dd_pct  avg_hold_min
+IS   8.0    0.21  50.0  0.92  0.90 -0.04    -0.15     0.7        150.00
+VAL  5.0    0.57  60.0  2.62  5.27  1.08     2.70     0.5        135.22
+--- CONTROL skip_t1 {'skip_t1': True}  (signals 8)
+       n  per_wk    wr     pf    pfR  expR  ret_pct  dd_pct  avg_hold_min
+IS   4.0    0.23  25.0   0.20   0.17 -0.28    -0.57    0.66        290.32
+VAL  4.0    0.46  50.0  32.61  16.34  0.98     1.96    0.08        315.00

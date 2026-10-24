@@ -11,9 +11,12 @@ Filters: rolling corr(r_XAU, r_XAG) over 288 bars >= corr_min (0.6) and beta in 
   entries 01:00-20:30 UTC; skip if a US release is within 10 min either side of the decision
   (tier-1 releases of the verified calendar, _d1util.TIER1); cooldown 6 bars
   after the native exit; one position at a time.
-Card exit (precomputed into `hold`): exit at the close of the first later bar with |S| <= S_out
-  (target) or S a further 1.25 beyond its entry value (score stop), or after max_bars (48) bars,
-  or 20:55 UTC; hard stop 1.5*ATR14(5m) as `sl`; no price target. unit = the hard-stop distance.
+Card exit (precomputed into `hold`): exit at the close of the first later bar with |S| <= S_out,
+  i.e. S back to -S_out or beyond for longs (+S_out for shorts; S_out = 0 means S crosses 0)
+  (target), or S a further 1.25 beyond its entry value (score stop), or after max_bars (48) bars,
+  or 20:55 UTC. Hard stop 1.5*ATR14(5m) as `sl`; no price target. unit = the hard-stop distance.
+  Fix 2026-10-24: the first run tested |S| <= S_out literally, so S_out = 0 never triggered
+  (no target); rerun after the fix (see results_batchD1.md).
 Grid: N, S_in, w, S_out from the card grid; L_beta, L_z, M, max_bars, corr_min at card defaults
   (budget 141).
 """
@@ -88,7 +91,7 @@ def signals(ctx, N=12, S_in=2.0, w=0.5, S_out=0.5):
             sj = S[j]
             if not np.isfinite(sj):
                 continue
-            if abs(sj) <= S_out or (side == 1 and sj <= s0 - 1.25) or (side == -1 and sj >= s0 + 1.25):
+            if side * sj >= -S_out or (side == 1 and sj <= s0 - 1.25) or (side == -1 and sj >= s0 + 1.25):
                 j_exit = j; break
             j_exit = j
         if j_exit is None:
