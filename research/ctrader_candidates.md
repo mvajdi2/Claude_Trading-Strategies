@@ -1,6 +1,6 @@
 # cTrader candidates
 
-**Status: no candidates.** No strategy met all gates in `docs/TASK_PROMPT.md` on unseen data
+**Status: no candidates** (47 ideas tested across Batches A, B, C, D1, D2; 7 reached OOS, all failed). No strategy met all gates in `docs/TASK_PROMPT.md` on unseen data
 (WR > 75%, PF > 3, max DD < 5% at 0.5% risk, met separately on IS 2025, VAL Jan–May 2026 and
 OOS Jun–Oct 2026, with the trade-count, stress and robustness minimums).
 
@@ -14,6 +14,7 @@ OOS Jun–Oct 2026, with the trade-count, stress and robustness minimums).
 | ema_pullback_adx | 1.57 / 88% | 3.35 / 91% | 0.99 / 80% / 40 | PF collapsed OOS |
 | london_range_ny_break | 1.86 / 60% | 1.68 / 70% | 0.47 / 39% / 28 | PF collapsed OOS |
 | bb_pinbar_fade | 1.50 / 49% | 2.13 / 58% | 0.52 / 39% / 33 | PF collapsed OOS |
+| usd_impulse_catchup (round 2) | 1.99 / 60% | 2.13 / 46% | 0.25 / 33% / 12 | PF collapsed OOS |
 
 Their OOS data has been used, so none of these can be re-tuned and re-tested on the same period.
 Relaxing the gates needs the user's explicit decision, and the result would need fresh data

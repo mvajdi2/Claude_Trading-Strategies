@@ -73,12 +73,28 @@ def summarize(tr, periods=("IS", "VAL")):
     return out
 
 
-def screen(sid):
+VAL_LOG = os.path.join(RESULTS, "val_looks.log")
+
+
+def log_val_look(sid, what):
+    with open(VAL_LOG, "a") as f:
+        f.write(f"{pd.Timestamp.utcnow().isoformat()}\t{sid}\t{what}\n")
+
+
+def split_val(df):
+    """(IS-only frame, VAL-only frame keyed by the same index)."""
+    vcols = [c for c in df.columns if c.endswith("_VAL")]
+    return df.drop(columns=vcols), df[vcols]
+
+
+def screen(sid, show_val=False):
     mod = load_strategy(sid)
     params = dict(getattr(mod, "DEFAULTS", {k: v[0] for k, v in mod.PARAMS.items()}))
     sig = visible(mod.signals(ctx(), **params))
     tr = bt1s.run(ctx(), sig)
-    rep = bt1s.report(tr, ("IS", "VAL"))
+    rep = bt1s.report(tr, ("IS", "VAL") if show_val else ("IS",))
+    if show_val:
+        log_val_look(sid, f"screen defaults={params}")
     print(f"[screen] {sid} defaults={params}\n{rep.round(2).to_string()}")
     return rep
 
@@ -139,7 +155,9 @@ def optimise(sid, max_combos=300, objective="pfR_IS", min_n_is=60, top_k=3):
                 vals.append(m.iloc[0][objective])
         return float(np.nanmedian(vals)) if vals else np.nan
     s1["plateau"] = [score({k: r[k] for k in keys}) for _, r in s1.iterrows()]
-    s1.to_csv(os.path.join(RESULTS, f"{sid}_opt_stage1.csv"), index=False)
+    _is, _v = split_val(s1)
+    _is.to_csv(os.path.join(RESULTS, f"{sid}_opt_stage1.csv"), index=False)
+    _v.to_csv(os.path.join(RESULTS, f"{sid}_opt_stage1_val.csv"), index=False)
     total = len(s1)
     s2 = pd.DataFrame()
     if exit_mode:
@@ -157,22 +175,24 @@ def optimise(sid, max_combos=300, objective="pfR_IS", min_n_is=60, top_k=3):
                     row = {k: b[k] for k in keys}; row["exit_kind"] = kind; row["exit"] = json.dumps(tpl)
                     row.update(summarize(tr)); rows.append(row)
         s2 = pd.DataFrame(rows)
-        s2.to_csv(os.path.join(RESULTS, f"{sid}_opt_exits.csv"), index=False)
+        _is, _v = split_val(s2)
+        _is.to_csv(os.path.join(RESULTS, f"{sid}_opt_exits.csv"), index=False)
+        _v.to_csv(os.path.join(RESULTS, f"{sid}_opt_exits_val.csv"), index=False)
         total += len(s2)
     res = pd.concat([s1, s2], ignore_index=True)
-    res.to_csv(os.path.join(RESULTS, f"{sid}_opt.csv"), index=False)
+    _is, _v = split_val(res)
+    _is.to_csv(os.path.join(RESULTS, f"{sid}_opt.csv"), index=False)
+    _v.to_csv(os.path.join(RESULTS, f"{sid}_opt_val.csv"), index=False)   # read only via the selector's --val path
     ok = res[res["n_IS"] >= min_n_is] if "n_IS" in res else res.iloc[0:0]
     print(f"[optimise] {sid}: {total} combos tested ({len(s1)} stage-1 + {len(s2)} exit) in {time.time()-t0:.0f}s; "
           f"{len(ok)} with n_IS >= {min_n_is}")
     if len(ok):
-        cols = keys + ["exit_kind", "exit", "plateau", "n_IS", "wr_IS", "pf_IS", "pfR_IS", "dd_pct_IS", "per_wk_IS",
-                       "n_VAL", "wr_VAL", "pf_VAL", "pfR_VAL", "dd_pct_VAL"]
+        cols = keys + ["exit_kind", "exit", "plateau", "n_IS", "wr_IS", "pf_IS", "pfR_IS", "dd_pct_IS", "per_wk_IS"]
         cols = [c for c in cols if c in ok]
         pd.set_option("display.width", 280); pd.set_option("display.max_colwidth", 60)
         print(ok.sort_values(objective, ascending=False)[cols].head(15).round(2).to_string())
         gate = ok[(ok.wr_IS > 75) & (ok.pf_IS > 3) & (ok.dd_pct_IS < 5)]
-        print(f"IS gate passers: {len(gate)}; of those also passing on VAL: "
-              f"{len(gate[(gate.wr_VAL > 75) & (gate.pf_VAL > 3) & (gate.dd_pct_VAL < 5)])}")
+        print(f"IS gate passers: {len(gate)} (VAL hidden; see results/{sid}_opt_val.csv via the selector --val path)")
     return res
 
 
@@ -282,7 +302,7 @@ def oos(sid):
 if __name__ == "__main__":
     cmd, sid = sys.argv[1], sys.argv[2]
     if cmd == "screen":
-        screen(sid)
+        screen(sid, show_val="--val" in sys.argv)
     elif cmd == "optimise":
         mx = int(sys.argv[sys.argv.index("--max") + 1]) if "--max" in sys.argv else 300
         optimise(sid, mx)

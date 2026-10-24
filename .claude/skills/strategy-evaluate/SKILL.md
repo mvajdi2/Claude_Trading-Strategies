@@ -12,6 +12,13 @@ Harness: `evaluate.py` (it enforces the protocol). Gates and splits are defined 
 IS = 2025, VAL = Jan–May 2026, OOS = Jun 2026 → end. `screen` and `optimise` never simulate
 signals dated in OOS.
 
+## VAL is hidden by default
+`screen` shows IS only (add `--val` to show VAL; this is logged to `results/val_looks.log`).
+`optimise` prints IS columns only and writes VAL columns to `results/<id>_opt*_val.csv` (same row
+order). Read those only from a committed selector's `--val` path, for the single IS-chosen
+finalist, and append that look to `results/val_looks.log`. Commit the selector **and** the
+strategy modules before running any grid.
+
 ## Pipeline per strategy
 1. **Screen:** `python3 evaluate.py screen <id>` runs the published defaults on IS and VAL.
    Continue if IS PF(R) ≥ 1.2 with ≥ 60 trades, or if the mechanism plainly works before costs.
