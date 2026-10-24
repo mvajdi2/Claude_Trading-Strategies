@@ -50,6 +50,10 @@ Rules:
   London 07–12, NY 12–21.
 - Higher timeframes: `ctx.bars(tf)` for any `tf` that divides 86400 (60, 300, 900, 3600 …).
   Indicators: `bt1s.ema`, `sma`, `atr`, `rsi`, `session_vwap` (tick-count weighted).
+- Cross-asset data: `ctx.m1("EURUSD")` (also XAGUSD, USDJPY, USATECHIDXUSD, BRENTCMDUSD,
+  USA500IDXUSD) returns Dukascopy 1-minute BID candles. Use only bars with `close_sec` at or
+  before your XAUUSD decision second. `ctx.calendar()` returns the verified US macro release
+  calendar with an epoch `sec` column.
 - The engine opens one position at a time and skips signals while a position is open. Do your
   own per-day limits inside `signals()` if the card asks for them.
 - Entries fill at the next second's close plus modeled half-spread and slippage. That's about

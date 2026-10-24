@@ -4,3 +4,5 @@ data/bi5/
 data/ticks/
 data/*.npz
 data/*.pkl
+data/m1raw/
+data/m1/

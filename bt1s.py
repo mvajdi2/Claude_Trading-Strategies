@@ -102,6 +102,31 @@ class Context:
         return df
 
 
+    # ---------- cross-asset 1-minute data ----------
+    def m1(self, sym):
+        """Dukascopy 1-minute BID candles for another symbol (data/m1/<sym>.npz, see download_m1.py).
+        Index = minute-start epoch second; columns o h l c v time close_sec. Use only bars whose
+        close_sec <= the XAUUSD decision second (no look-ahead)."""
+        key = f"m1:{sym}"
+        if key not in self._bars:
+            z = np.load(os.path.join(hfdata.ROOT, "data", "m1", f"{sym}.npz"))
+            df = pd.DataFrame({k: z[k] for k in ("o", "h", "l", "c", "v")}, index=z["ts"].astype(np.int64))
+            df = df[~df.index.duplicated()].sort_index()
+            df["time"] = pd.to_datetime(df.index, unit="s")
+            df["close_sec"] = df.index + 59
+            self._bars[key] = df
+        return self._bars[key]
+
+    def calendar(self):
+        """Verified US macro release calendar (data/calendar/us_macro_2025_2026.csv) with an
+        epoch-second column `sec`."""
+        if "calendar" not in self._bars:
+            c = pd.read_csv(os.path.join(hfdata.ROOT, "data", "calendar", "us_macro_2025_2026.csv"))
+            c["sec"] = pd.to_datetime(c.datetime_utc, utc=True).dt.tz_localize(None).astype("datetime64[s]").astype(np.int64)
+            self._bars["calendar"] = c
+        return self._bars["calendar"]
+
+
 # ---------------------------------------------------------------- indicators
 def ema(x, n):
     return pd.Series(x).ewm(span=n, adjust=False).mean().values
