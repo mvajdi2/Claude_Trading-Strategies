@@ -75,7 +75,7 @@ def summarize(tr, periods=("IS", "VAL")):
 
 def screen(sid):
     mod = load_strategy(sid)
-    params = {k: v[0] for k, v in mod.PARAMS.items()}
+    params = dict(getattr(mod, "DEFAULTS", {k: v[0] for k, v in mod.PARAMS.items()}))
     sig = visible(mod.signals(ctx(), **params))
     tr = bt1s.run(ctx(), sig)
     rep = bt1s.report(tr, ("IS", "VAL"))
@@ -143,7 +143,8 @@ def optimise(sid, max_combos=300, objective="pfR_IS", min_n_is=60, top_k=3):
     total = len(s1)
     s2 = pd.DataFrame()
     if exit_mode:
-        best = s1.dropna(subset=["plateau"]).sort_values("plateau", ascending=False).head(top_k)
+        elig = s1[(s1.get("n_IS", 0) >= min_n_is)] if "n_IS" in s1 else s1.iloc[0:0]
+        best = elig.dropna(subset=["plateau"]).sort_values("plateau", ascending=False).head(top_k)
         rows = []
         for _, b in best.iterrows():
             c = tuple(b[k] for k in keys)
@@ -189,6 +190,23 @@ def robustness(sid, params, exit_tpl=None):
     return float(np.nanmedian(pfs)) if pfs else np.nan, pfs
 
 
+def code_hash_v3(sid):
+    """hash of the strategy file, the strategies/ helper modules it imports, and bt1s.py"""
+    import re
+    path = os.path.join(ROOT, "strategies", f"{sid}.py")
+    src = open(path).read()
+    mods = set(re.findall(r"from\s+strategies\.(\w+)\s+import|from\s+\.(\w+)\s+import|import\s+strategies\.(\w+)", src))
+    names = sorted({m for t in mods for m in t if m} |
+                   set(re.findall(r"from\s+strategies\s+import\s+(\w+)", src)))
+    h = hashlib.sha256(open(path, "rb").read())
+    for n in names:
+        f = os.path.join(ROOT, "strategies", f"{n}.py")
+        if os.path.exists(f) and n != sid:
+            h.update(open(f, "rb").read())
+    h.update(open(os.path.join(ROOT, "bt1s.py"), "rb").read())
+    return h.hexdigest()[:16], names
+
+
 def code_hash(sid):
     """hash of the strategy file plus shared helper modules in strategies/ (X6)"""
     import glob
@@ -208,7 +226,7 @@ def frozen_path(sid):
 
 def freeze(sid, params, exit_tpl=None, note=""):
     rec = dict(id=sid, params=params, exit=exit_tpl, note=note,
-               code_sha=code_hash(sid), hash_scheme="v2",
+               code_sha=code_hash_v3(sid)[0], hash_scheme="v3", hashed_helpers=code_hash_v3(sid)[1],
                frozen_at=pd.Timestamp.utcnow().isoformat(), oos_run=False)
     med, pfs = robustness(sid, params, exit_tpl)
     rec["robust_median_pf_IS"] = med
@@ -226,7 +244,9 @@ def oos(sid):
         print("[oos] already run once; showing stored result")
         print(pd.DataFrame(rec["oos_result"]).round(2).to_string())
         return rec
-    if rec.get("hash_scheme") == "v2":
+    if rec.get("hash_scheme") == "v3":
+        ok_hash = code_hash_v3(sid)[0] == rec["code_sha"]
+    elif rec.get("hash_scheme") == "v2":
         ok_hash = code_hash(sid) == rec["code_sha"]
     else:
         src = open(os.path.join(ROOT, "strategies", f"{sid}.py")).read()
