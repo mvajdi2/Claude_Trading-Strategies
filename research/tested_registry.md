@@ -83,3 +83,17 @@ Batch B observation: no reversal or mean-reversion idea reached PF ≥ 1.5 on IS
 | C12 | macro_shock: NFP/CPI 15-min shock drift | 0 | – | SKIPPED: release dates not verifiable on bls.gov (403 bot block) | – |
 
 Batch C observation: the time-of-day ideas earn their IS edge from 2025's bull-trend beta (long-daytime benchmark matches) and reverse in VAL 2026. ema_pullback_adx is the only setting that met WR/PF/DD on VAL, and it fell to PF 0.99 in OOS.
+
+### Batch D1: cross-asset, statistical, microstructure (research/results_batchD1.md; staged harness; rule committed c414e82; final VAL look each)
+
+| ID | Idea | Combos | Finalist IS / VAL / OOS (PF, WR, n) | Verdict | Where |
+|---|---|---|---|---|---|
+| D1-1 | common_factor_residual: XAU residual vs USD common factor (XAG, EUR, JPY, Brent), M15 z reversion | 267 | IS 1.09 (PF(R) 1.01), 48.2, 371 / VAL 0.94 | REJECT (IS) | `strategies/common_factor_residual.py` |
+| D1-2 | usd_impulse_catchup: gold catch-up after a 1m cross-asset impulse (USD2/EUR/JPY/XAG/Nasdaq leader) | 294 | IS 1.99 (PF(R) 1.76), 59.6, 94 / VAL 2.13, 45.5, 22 / OOS 0.25, 33.3, 12 | OOS FAIL | `strategies/usd_impulse_catchup.py`, `strategy_cards/usd_impulse_catchup.frozen.json` |
+| D1-3 | gold_silver_residual: gold/silver residual + ratio score reversion, gold leg | 267 + 267 (bug-fix rerun) | IS 1.28 (PF(R) 1.12), 46.9, 81 / VAL 0.80 | REJECT (IS) | `strategies/gold_silver_residual.py` |
+| D1-4 | riskoff_rebound: gold rebound after joint Nasdaq+gold liquidation (+ mirror) | 267 | IS 1.30 (PF(R) 1.23), 68.7, 83 / VAL 0.86 | REJECT (IS) | `strategies/riskoff_rebound.py` |
+| D1-5 | reopen_gap_fade: weekend/holiday/daily reopen gap fade (follow control) | 279 | IS 1.27 (PF(R) 0.90), 56.5, 62 / VAL 0.72; follow control IS PF(R) 0.76 | REJECT (IS); card thresholds give < 30 IS+VAL trades | `strategies/reopen_gap_fade.py` |
+| D1-6 | tick_intensity_follow: 1m quote-intensity surge + quote imbalance (follow / fade_wide) | 267 | IS 0.90 (PF(R) 0.77), 43.0, 291 / VAL 0.72 | REJECT (IS) | `strategies/tick_intensity_follow.py` |
+| D1-7 | vr_kalman_regime: variance-ratio regime + Kalman-level z (revert/trend) | 240 | IS 1.73 (PF(R) 1.66), 59.8, 87 / VAL 0.79, 55.0, 40 | REJECT at VAL | `strategies/vr_kalman_regime.py` |
+
+Batch D1 observation: none of the cross-asset or statistical ideas meets the WR/PF gates on IS. The two IS winners (vr_kalman, usd_impulse with the silver leader) sit at grid corners and break down in VAL or OOS.
