@@ -46,3 +46,21 @@ Merged duplicates: implement one strategy module per line; card variants become 
 Deferred: academic-usd-residual-catchup (needs EURUSD data).
 
 **User instruction:** no ICT/SMC strategies (FVG, order blocks, liquidity sweeps, Judas, Silver Bullet, killzones).
+
+## Batch D (round 2, research/cards/round2.yaml), no ICT/SMC
+### D1: cross-asset, statistical, microstructure (data: XAUUSD 1s + data/m1/*.npz via ctx.m1)
+1. common_factor_residual: r2-common-factor-residual-m15
+2. usd_impulse_catchup: r2-usd-impulse-catchup (replaces deferred academic-usd-residual-catchup)
+3. gold_silver_residual: r2-gold-silver-residual-revert
+4. riskoff_rebound: r2-riskoff-coliquidation-rebound (needs USATECHIDXUSD; wait for data/m1/USATECHIDXUSD.npz)
+5. reopen_gap_fade: r2-reopen-gap-fade (with follow-the-gap control)
+6. tick_intensity_follow: r2-tick-intensity-imbalance-follow
+7. vr_kalman_regime: r2-vr-regime-kalman-revert
+### D2: macro-calendar (data: ctx.calendar() = data/calendar/us_macro_2025_2026.csv), started once the calendar exists
+1. post_release_revert: r2-post-release-small-surprise-revert
+2. pre_release_drift: r2-pre-release-drift-10et
+3. release_range_crush: r2-post-release-range-crush-fade
+4. release_bracket: r2-release-bracket-impulse
+5. macro_shock: academic-macro-shock-15m-drift (previously skipped for lack of a calendar)
+6. month_end_fix: r2-month-end-fix-hedge-flow (screen/sign check only; too few trades for gates)
+7. comex_expiry: r2-comex-expiry-pressure (screen + placebo only; too few trades for gates)

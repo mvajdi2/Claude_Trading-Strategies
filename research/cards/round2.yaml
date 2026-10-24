@@ -1,0 +1,636 @@
+# Round-2 strategy cards (strategy-research skill, lane: round2)
+# Conventions for every card:
+#   - All times UTC. "ET" times are converted with America/New_York (EDT = UTC-4 from 2nd Sun Mar to
+#     1st Sun Nov; EST = UTC-5 otherwise). "London" times use Europe/London (BST = UTC+1 last Sun Mar
+#     to last Sun Oct). US/UK DST mismatch weeks (Mar/Oct-Nov) must be handled per-day, never with a
+#     fixed UTC offset.
+#   - Flat by 20:55 UTC at the latest (hard rule; 21:00 UTC limit).
+#   - Cross-asset series = Dukascopy BID 1-minute candles in data/m1/<SYM>.npz, aligned on the bar
+#     OPEN timestamp; a 1m bar's close is only usable from the NEXT minute (no look-ahead).
+#   - us_macro_calendar = data/calendar/us_macro_2025_2026.csv (being built by another agent).
+#     Assumed columns: date, time_et, event, tier. Cards list any events they need that may be missing.
+#   - Trade-count gate reminder (strategy-evaluate): >=100 trades IS+VAL and >=25 OOS. Cards whose
+#     natural frequency is below that say so in notes.
+#   - Ideas already tested (registry T1-T8, A1-A11, B1-B12, C1-C12) are not resubmitted; where a card
+#     touches a tested idea, `notes` states the material difference.
+---
+id: r2-usd-impulse-catchup
+name: Gold under-reaction to a broad USD (or cross-asset) impulse - 1m catch-up
+mechanism: other
+timeframe_signal: 1m
+session: "07:00-20:30 UTC"
+entry:
+  long:  >
+    Leader factor u (default USD2 = 0.5*(-r_EURUSD) + 0.5*(r_USDJPY), in log-return units; u>0 = USD up).
+    Impulse: U_W = sum of u over the last W closed 1m bars. z_U = U_W / sd(U_W) where sd is taken from
+    the same clock-window over the prior 20 trading days. Require z_U <= -k (USD sell-off) AND both legs
+    agree (-r_EURUSD(W) < -0.5*sd_leg AND r_USDJPY(W) < -0.5*sd_leg) so that euro-only or yen-only moves
+    are ignored. beta = rolling 20-day OLS slope of 1m XAU log returns on 1m u (07:00-20:30 bars only;
+    beta is negative in normal regimes). Expected gold move E = beta*U_W (>0 here). Realised gold move
+    G = r_XAU(W). Under-reaction ratio rho = G/E. Enter LONG XAU at the next 1m open if rho < rho_max.
+  short: "mirror: z_U >= +k with both legs agreeing (USD rally), E<0, rho = G/E < rho_max -> SHORT XAU"
+  order: market
+stop: "entry -/+ stop_mult * |E| (price units), floor 0.6*ATR14(1m)*sqrt(W)"
+target: "gold covers tgt_frac of the remaining gap: entry +/- tgt_frac*(1-rho)*|E|"
+time_exit: "hold_min minutes after entry, or 20:55 UTC"
+filters:
+  - "rolling 5-day correlation of 1m XAU vs u must be <= corr_max (relationship intact); skip otherwise"
+  - "skip if a us_macro_calendar release falls in [t-10min, t+hold_min] (these are handled by the r2-*release* cards) - param news_skip"
+  - "one trade per 60 minutes; no new entries after 20:00 UTC"
+  - "skip if XAU spread > 2x its 20-day median for that minute of day"
+params:
+  leader:     {default: USD2, grid: [USD2, EURUSD, USDJPY, USATECH, XAGUSD]}
+  W_min:      {default: 10, grid: [5, 10, 15, 30]}
+  k:          {default: 3.0, grid: [2.5, 3.0, 3.5, 4.0]}
+  rho_max:    {default: 0.5, grid: [0.25, 0.5, 0.75]}
+  tgt_frac:   {default: 0.7, grid: [0.5, 0.7, 1.0]}
+  stop_mult:  {default: 0.75, grid: [0.5, 0.75, 1.0]}
+  hold_min:   {default: 30, grid: [15, 30, 60]}
+  corr_max:   {default: -0.2, grid: [-0.4, -0.2, 0.0]}
+  news_skip:  {default: true, grid: [true, false]}
+expected_frequency: "~2-6 per week (k=3, W=10); leader=USATECH/XAGUSD use the sign of beta, not the USD sign convention"
+claimed: "none for this exact rule. Vendor/indicator descriptions claim DXY-led gold setups on 1-5m charts but publish no statistics."
+assumptions:
+  - "USD2 factor (EURUSD+USDJPY, two-leg agreement) is the researcher's proxy for DXY (DXY not in data)"
+  - "all thresholds, the rho under-reaction definition, the 20-day beta window and exits are researcher-chosen"
+  - "for leader in {USATECH, XAGUSD}: z_U uses the leader's own return; E = beta*U_W with beta estimated the same way"
+data_needed: [XAUUSD_1s, EURUSD_m1, USDJPY_m1, USATECHIDXUSD_m1, XAGUSD_m1, us_macro_calendar]
+sources:
+  - https://store.traders.com/stcov284useu.html
+  - https://www.tradingview.com/script/hwkVTdbO-DXY-Gold-Sniper-Flow-Hitz2kk/
+  - https://www.tradingview.com/script/FsuB2iFG-Gold-vs-DXY/
+  - https://arxiv.org/abs/1906.10388
+  - https://arxiv.org/abs/1111.7103
+notes: >
+  Materially different from the deferred card academic-usd-residual-catchup (30m EURUSD-only residual on 5m bars):
+  this one requires a two-currency USD impulse (filters euro- or yen-specific news, which the Gold-vs-DXY script
+  notes does not transmit to gold), measures under-reaction as a ratio of the beta-implied move, works on 1m with a
+  10-minute impulse, and can swap the leader for Nasdaq or silver. It replaces the deferred card.
+  Evidence is mixed: Trongone (S&C 2010) describes euro-leads-gold intraday; Stojkoski et al. find statistically
+  significant 1-minute lead-lag in some FX pairs, with equity indices most influential; Huth & Abergel find a tick-level lead-lag
+  that a naive market-order strategy cannot monetise because of the spread. That is why the card waits for large
+  (3 sigma) impulses and 15-60 min horizons instead of tick lags. Failure mode: the USD move is driven by
+  something that also hits gold the other way (real-yield shock, risk-off), so gold never catches up; the
+  correlation filter is the guard.
+---
+id: r2-gold-silver-residual-revert
+name: Gold/silver relative-value residual reversion (gold leg only), 5m
+mechanism: mean_reversion
+timeframe_signal: 5m
+session: "01:00-20:30 UTC"
+entry:
+  long:  >
+    beta = rolling OLS slope of 5m r_XAU on 5m r_XAG over L_beta bars (typical 0.4-0.7).
+    Return residual e_t = r_XAU - beta*r_XAG; cumulative residual CR = sum of e over the last N bars;
+    zR = CR / sd(CR) (sd over the last L_z bars of CR). Ratio deviation zQ = (log(XAU/XAG) - mean_M)/sd_M over
+    the last M bars. Score S = w*zR + (1-w)*zQ. LONG XAU when S was <= -S_in on the previous bar and the current
+    bar's S has turned back up by >= 0.25 (gold cheap vs silver and starting to revert).
+  short: "mirror: S >= +S_in then turns down by >= 0.25 -> SHORT XAU"
+  order: market
+stop: "S extends a further 1.25 (score units) against the position, or hard stop 1.5*ATR14(5m)"
+target: "|S| <= S_out"
+time_exit: "max_bars bars after entry, or 20:55 UTC"
+filters:
+  - "rolling corr(r_XAU, r_XAG) over 288 bars >= corr_min; beta within [0.25, 1.0]; else blocked (as in the source script)"
+  - "skip 10 min either side of tier-1 us_macro_calendar releases"
+  - "cooldown 6 bars after an exit"
+params:
+  N:        {default: 12, grid: [6, 12, 24]}
+  L_beta:   {default: 576, grid: [288, 576, 1152]}
+  L_z:      {default: 288, grid: [144, 288, 576]}
+  M:        {default: 60, grid: [36, 60, 120]}
+  w:        {default: 0.5, grid: [0.5, 0.75, 1.0]}
+  S_in:     {default: 2.0, grid: [1.75, 2.0, 2.5, 3.0]}
+  S_out:    {default: 0.5, grid: [0.0, 0.5, 1.0]}
+  max_bars: {default: 48, grid: [24, 48, 100]}
+  corr_min: {default: 0.6, grid: [0.5, 0.6, 0.7]}
+expected_frequency: "~1-3 per day before filters"
+claimed: >
+  Source script reports simulated performance with no costs (no figures published on the page). A cTrader
+  gold/silver pairs cBot lists a seller backtest of PF 1.66, WR 61.7%, 1,298 trades over 3 years (two legs,
+  optimised, no OOS). Treat both as marketing.
+assumptions:
+  - "gold-leg-only execution is the researcher's adaptation; the source trades both legs as a market-neutral pair"
+  - "the 0.25 turn-back trigger, window lengths and the 5m timeframe default are researcher choices within the source's 3m/5m recommendation"
+data_needed: [XAUUSD_1s, XAGUSD_m1, us_macro_calendar]
+sources:
+  - https://www.tradingview.com/script/GUigiYRV-Gold-Silver-Pairs-Scalper/
+  - https://ctrader.com/products/1987
+  - https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5407636/
+  - https://informahealthcare.com/doi/abs/10.1080/096031000331644
+notes: >
+  A key caution from a 15-minute gold/silver futures study (abstract only, via search): silver does most of the
+  convergence when the gold/silver spread reverts. A gold-only leg may therefore pick up only part of the
+  reversion. The engine should also report the silver-leg P&L as a diagnostic, without trading it, to see which leg
+  reverts. Mechanism for a high WR: small, frequent reversion of a noisy relative price. Payoff risk: regime breaks
+  such as a silver squeeze (2025-26 had violent silver moves), where the stop on score extension is the guard.
+---
+id: r2-common-factor-residual-m15
+name: XAU idiosyncratic residual vs a USD common factor (gold, silver, euro, yen), M15 z-score reversion
+mechanism: mean_reversion
+timeframe_signal: 15m
+session: "00:00-20:30 UTC"
+entry:
+  long:  >
+    On 15m bars compute vol-standardised returns z_i = r_i / sd_i (sd over FactorWin bars) for
+    i in {XAU, XAG, EURUSD, -USDJPY} (signs chosen so that all rise when USD falls). Common factor
+    F = equal-weight mean of the z_i. Loading b_XAU = rolling OLS of z_XAU on F over LoadWin bars.
+    Residual e = z_XAU - b_XAU*F; cumulative residual C = sum of e over the last Zwin bars;
+    Z = (C - mean(C)) / sd(C) over the last 20 trading days. LONG XAU when Z <= -EntryZ (gold has
+    under-performed the USD factor).
+  short: "Z >= +EntryZ -> SHORT XAU"
+  order: market
+stop: "Z beyond StopZ against the position, or 2*ATR14(15m) hard stop"
+target: "|Z| <= ExitZ"
+time_exit: "MaxHoldBars bars, or 20:55 UTC (positions never carried overnight)"
+filters:
+  - "trend de-risk: skip shorts if XAU 20-day EMA slope is in the top decile, and longs if it is in the bottom decile (TrendDerisk analogue)"
+  - "skip entries 21:00-00:00 UTC (no positions across the daily break)"
+  - "skip if a tier-1 us_macro_calendar release is within the next 30 min"
+params:
+  FactorWin:   {default: 96, grid: [48, 96, 192]}
+  LoadWin:     {default: 480, grid: [240, 480, 960]}
+  Zwin:        {default: 32, grid: [8, 16, 32]}
+  EntryZ:      {default: 2.0, grid: [1.5, 2.0, 2.5]}
+  ExitZ:       {default: 0.6, grid: [0.0, 0.3, 0.6, 1.0]}
+  StopZ:       {default: 4.0, grid: [3.0, 4.0, 5.0]}
+  MaxHoldBars: {default: 64, grid: [16, 32, 64]}
+  members:     {default: "XAU,XAG,EURUSD,USDJPY", grid: ["XAU,XAG,EURUSD", "XAU,XAG,EURUSD,USDJPY", "XAU,XAG,EURUSD,USDJPY,BRENT"]}
+expected_frequency: "~3-6 per week (intraday-capped holding)"
+claimed: >
+  King Arb Gold Euro EA (MQL5 Market, vendor): real-tick MT5 backtest 2025.01-2026.06, commission and spreads
+  included, PF 1.37, WR 58.9%, 1,388 trades, Sharpe 5.12. It trades the XAU-minus-EUR residual gap as a two-leg
+  spread with a silver-built factor and is "pre-optimised", so treat the figures as in-sample. They overlap our IS+VAL.
+assumptions:
+  - "gold single-leg execution and the forced intraday exit are researcher changes; the source holds a hedged two-leg spread up to 64 bars"
+  - "adding USDJPY (yen leg) and optional Brent to the factor is the researcher's extension"
+  - "EntryZ/ExitZ/StopZ/MaxHoldBars defaults copied from the vendor's published inputs; FactorWin/LoadWin/Zwin values are not published and were chosen by the researcher"
+data_needed: [XAUUSD_1s, XAGUSD_m1, EURUSD_m1, USDJPY_m1, BRENTCMDUSD_m1, us_macro_calendar]
+sources:
+  - https://www.mql5.com/en/market/product/182535
+  - https://www.tradingview.com/script/GUigiYRV-Gold-Silver-Pairs-Scalper/
+notes: >
+  Differs from r2-usd-impulse-catchup (an event-triggered 1m catch-up after a USD shock) and from
+  r2-gold-silver-residual-revert (a two-asset ratio). This card is a slow, continuous multi-factor residual whose z-score
+  reverts over hours. It is the only round-2 idea with a cost-inclusive third-party test on our exact period, although that
+  test is vendor-run and two-legged. Expect a moderate WR (~55-65%) unless ExitZ is large; the evaluation's
+  scalp + break-even exit templates may lift WR.
+---
+id: r2-riskoff-coliquidation-rebound
+name: Gold rebound after a joint Nasdaq-and-gold liquidation (risk-off "sell what you can")
+mechanism: mean_reversion
+timeframe_signal: 1m
+session: "07:00-20:00 UTC"
+entry:
+  long:  >
+    Over a rolling window W (minutes): rN = USATECH log return, rG = XAU log return. z-scores vs the same
+    window's distribution over the prior 20 days (all hours 07-20 UTC). Trigger when zN <= -kN AND zG <= -kG
+    (both selling off together, i.e. positive co-movement in a stress move). Then wait for stabilisation:
+    first 5m XAU bar that closes above its open AND above the prior 5m bar's high. Enter LONG at the next 1m open.
+  short: "none by default; param mirror=true tests the symmetric risk-on melt-up (zN>=kN and zG>=kG -> short gold)"
+  order: market
+stop: "lowest XAU low since trigger - 0.25*ATR14(5m)"
+target: "retrace tgt_frac of gold's drop measured from the window high to the post-trigger low"
+time_exit: "hold_min minutes after entry, or 20:55 UTC"
+filters:
+  - "skip if a tier-1 us_macro_calendar release occurred in the trigger window (news repricing, not liquidation) - param"
+  - "max 1 trade per day"
+  - "stabilisation must occur within 60 min of trigger, else cancel"
+params:
+  W_min:    {default: 30, grid: [15, 30, 60]}
+  kN:       {default: 2.5, grid: [2.0, 2.5, 3.0]}
+  kG:       {default: 2.0, grid: [1.5, 2.0, 2.5]}
+  tgt_frac: {default: 0.5, grid: [0.382, 0.5, 0.618]}
+  hold_min: {default: 120, grid: [60, 120, 240]}
+  news_skip: {default: true, grid: [true, false]}
+  mirror:   {default: false, grid: [false, true]}
+expected_frequency: "~2-5 per month in 2025-26 conditions (needs a check; may be below the 100-trade IS+VAL gate at strict thresholds)"
+claimed: "none"
+assumptions:
+  - "all thresholds, the stabilisation trigger and the target are researcher-defined"
+  - "USATECHIDXUSD (Nasdaq-100 CFD) is the risk proxy; USA500 can be swapped in as a param"
+data_needed: [XAUUSD_1s, USATECHIDXUSD_m1, USA500IDXUSD_m1, us_macro_calendar]
+sources:
+  - https://www.gold.org/goldhub/gold-focus/2026/04/you-asked-we-answered-has-golds-performance-structurally-changed
+  - https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5407636/
+notes: >
+  Mechanism (WGC, April 2026): "it is common for gold to retract initially during periods of risk as it is used as a
+  source of liquidity, but to recover"; margin-call selling of a liquid asset is non-informational and should mean-revert.
+  The co-movement condition separates forced selling (gold falls WITH equities) from normal risk-off (gold rises).
+  The B9 overreaction fade tested gold-only extremes. This card conditions on a cross-asset stress state, which is materially
+  different. Failure mode: a genuine dollar-funding squeeze (March 2020 style), where gold keeps falling for days. The
+  structure stop limits the damage.
+---
+id: r2-pre-release-drift-10et
+name: Pre-announcement drift continuation into 10:00 ET (and 09:15 ET) US releases, cross-asset confirmed
+mechanism: momentum
+timeframe_signal: 1m
+session: "event-driven: T-30min to T+15min, T = release time"
+entry:
+  long:  >
+    Event set E10 (default): ISM Manufacturing, ISM Services, Conference Board Consumer Confidence, Existing Home
+    Sales, Pending Home Sales (10:00 ET) and Industrial Production (09:15 ET). Pre-window drift over [T-30m, T-d_entry]:
+    DG = XAU log return, DS = USA500 return, DU = USD2 return (0.5*(-EURUSD)+0.5*USDJPY). z-score each against the
+    same clock window on the prior 40 NON-event days. "Weak-data" vote count V = [zG >= z_min] + [zS <= -z_min] + [zU <= -z_min].
+    LONG XAU at T-d_entry (market) when zG >= z_min and V >= v_min.
+  short: "mirror ('strong data'): zG <= -z_min, votes from zS >= z_min and zU >= z_min -> SHORT XAU"
+  order: market
+stop: "entry -/+ max(stop_mult*|DG| in price, 0.5*ATR14(5m))"
+target: "none (time exit); optional tgt = 1.0*|DG| as a param"
+time_exit: "T + exit_min minutes"
+filters:
+  - "skip if an 08:30 ET tier-1 release (NFP, CPI, PCE, GDP, retail sales) is on the same day (KSSW: drift may be post-08:30 adjustment)"
+  - "skip if XAU spread at entry > 2x the 20-day median for that minute"
+params:
+  event_set:  {default: E10, grid: [E10, ISM_only, E10_plus_UMich_JOLTS]}
+  d_entry:    {default: 2, grid: [1, 2, 5]}
+  z_min:      {default: 1.0, grid: [0.5, 1.0, 1.5]}
+  v_min:      {default: 2, grid: [1, 2, 3]}
+  exit_min:   {default: 5, grid: [1, 5, 15, 30]}
+  stop_mult:  {default: 1.0, grid: [0.75, 1.0, 1.5]}
+  skip_830:   {default: true, grid: [true, false]}
+expected_frequency: "~6 events/month, i.e. ~70/yr before the vote filter. Borderline for the 100-trade gate; widen event_set if needed"
+claimed: >
+  Kurov, Sancetta, Strasser & Wolfe (ECB WP 1901 / JFQA): in E-mini S&P and 10y T-note futures 2008-2014, 7 of 21
+  market-moving announcements show substantial informed trading. Prices start moving in the correct direction ~30
+  minutes before release and the pre-drift is about half of the total adjustment. ISM Mfg, ISM Non-Mfg, Pending
+  and Existing Home Sales survive Holm multiple-testing correction. They estimate ~USD 20m/yr of pre-release profits in E-mini alone.
+assumptions:
+  - "transfer of the equity/bond finding to XAUUSD is the researcher's hypothesis (KSSW do not study gold)"
+  - "the vote rule, the non-event-day z-score baseline and the T-2min entry are researcher-defined"
+  - "event dates: ISM Mfg = 1st business day, ISM Services = 3rd business day, CB Confidence = last Tuesday; Industrial Production, Existing and Pending Home Sales need the actual release calendar and may be MISSING from us_macro_calendar"
+data_needed: [XAUUSD_1s, USA500IDXUSD_m1, EURUSD_m1, USDJPY_m1, us_macro_calendar_with_10et_releases]
+sources:
+  - https://www.ecb.europa.eu/pub/pdf/scpwps/ecbwp1901.en.pdf
+  - https://mountainscholar.org/bitstreams/21623442-a01d-45a6-879d-d645e781e52a/download
+notes: >
+  Not covered by T7. T7 tested fixed daily 08:30/10:00 ET anchors, with no event conditioning and no pre-release
+  window. Good data lowers gold (Elder et al., 2012), so the confirming votes use equities up and USD up as the
+  strong-data signature. Run a placebo with the same rule on non-event days at 10:00 ET. Main risk: the drift may have
+  weakened since 2014 (stricter release procedures). Holding through the release second means spread spikes. Run the
+  1s engine with release-second spread widening.
+---
+id: r2-post-release-small-surprise-revert
+name: Fade the initial reaction to US data releases when the reaction is small (small-surprise reversal)
+mechanism: mean_reversion
+timeframe_signal: 1m
+session: "event-driven: T to T+180min, T = 08:30 or 10:00 ET release"
+entry:
+  long:  >
+    Events: all 08:30 ET releases in us_macro_calendar (NFP, CPI, PPI, retail sales, weekly initial jobless claims,
+    GDP, PCE/personal income, durable goods, housing starts) plus 10:00 ET tier-1/2. Initial reaction
+    R0 = XAU mid(T+s0) - mid(T-1min). Surprise proxy q = |R0| / med20 where med20 = median |R0| of the previous
+    20 releases of the same event type (pooled across types for types with <20 history). If q <= q_max and
+    |R0| >= r_min*ATR14(1m)*sqrt(s0/60), FADE: for R0 < 0, BUY at T+s0+delay.
+  short: "R0 > 0 and same conditions -> SELL"
+  order: market
+stop: "most extreme price between T and entry, plus/minus stop_mult*|R0|"
+target: "full retrace to mid(T-1min) (tgt_frac=1.0) or tgt_frac*|R0| back toward it"
+time_exit: "T + hold_min minutes, or 20:55 UTC"
+filters:
+  - "if two releases share the same timestamp, treat them as one event (type = highest tier)"
+  - "skip FOMC statement days (separate dynamics)"
+  - "large-surprise branch (q > q_max) takes no trade by default; param large_mode=follow tests continuation"
+params:
+  s0_sec:      {default: 120, grid: [30, 60, 120, 300]}
+  delay_sec:   {default: 0, grid: [0, 60, 180]}
+  q_max:       {default: 0.75, grid: [0.5, 0.75, 1.0]}
+  r_min:       {default: 1.0, grid: [0.5, 1.0, 2.0]}
+  stop_mult:   {default: 1.0, grid: [0.5, 1.0, 1.5]}
+  tgt_frac:    {default: 1.0, grid: [0.5, 0.75, 1.0]}
+  hold_min:    {default: 180, grid: [30, 90, 180]}
+  large_mode:  {default: none, grid: [none, follow]}
+expected_frequency: "~150 release events/yr (claims alone give ~52); ~40-60% qualify as small -> ~60-90 trades/yr"
+claimed: >
+  Yamada & Ito (NBER w27036, JIMF 2022), 20 years of EBS USD/JPY and EUR/USD around US macro releases: little
+  post-announcement drift. "Rather, there is a reversal after the announcements when the magnitude of news
+  surprise is small". The autocorrelation between the first 100-200 s and the remainder of the 3-hour window is about -5%.
+assumptions:
+  - "no consensus/actual data, so surprise size is proxied by the size of gold's own initial move (researcher's choice)"
+  - "transfer from FX (EBS) to XAUUSD is a hypothesis; gold's response is mostly through USD, which Elder et al. find is absorbed within ~5 minutes"
+  - "all thresholds and exits researcher-defined"
+data_needed: [XAUUSD_1s, us_macro_calendar]
+sources:
+  - https://www.nber.org/papers/w27036.pdf
+  - https://mountainscholar.org/bitstreams/21623442-a01d-45a6-879d-d645e781e52a/download
+notes: >
+  Differs from T7 (fixed daily anchors on all days) and from the skipped C12 / academic-macro-shock-15m-drift
+  (continuation after LARGE shocks): this card fades SMALL reactions on actual release days only, conditioned on
+  the release-type history. Mechanism: small surprises are noise-driven moves by fast traders, which Yamada & Ito
+  link to poor news interpretation, and liquidity providers revert them once spreads normalise. Elder et al. (gold, silver
+  and copper futures 2002-08) find metal returns absorb news within ~5 minutes and show no post-announcement return
+  effect, which is consistent with the absence of drift.
+---
+id: r2-post-release-range-crush-fade
+name: Post-release volatility crush - fade re-tests of the 15-minute release impulse range
+mechanism: mean_reversion
+timeframe_signal: 1m
+session: "event-driven: T+20min to T+150min"
+entry:
+  long:  >
+    Tier-1 events: NFP, CPI, core PCE/personal income, GDP advance, retail sales, FOMC statement (14:00 ET) and FOMC
+    press-conference start (14:30 ET, treat as its own event). Impulse range IR = [low, high] of XAU from T to T+15min;
+    IR_mid = midpoint. Peak vol PV = realised vol of 1m returns over T..T+5. From T+20 to T+150: when price
+    touches IR low (within tol*IR) AND the trailing 10-minute 1m realised vol <= crush*PV AND the touching 1m bar closes
+    back inside IR, BUY at the next 1m open.
+  short: "mirror at IR high -> SELL"
+  order: market
+stop: "IR extreme -/+ stop_frac*IR_width"
+target: "IR_mid (tgt=mid) or IR extreme +/- 0.382*IR_width (tgt=fib)"
+time_exit: "T + 180min or 20:55 UTC"
+filters:
+  - "IR_width must be >= w_min*ATR14(15m) of the prior day (an actual impulse happened)"
+  - "max one long and one short per event; if a stop is hit on one side, no further trades on that event"
+  - "param mode=break tests the opposite (stop entry beyond the IR extreme) as a control"
+params:
+  tol:       {default: 0.05, grid: [0.0, 0.05, 0.1]}
+  crush:     {default: 0.5, grid: [0.33, 0.5, 0.7]}
+  stop_frac: {default: 0.25, grid: [0.15, 0.25, 0.4]}
+  tgt:       {default: mid, grid: [mid, fib]}
+  w_min:     {default: 0.5, grid: [0.3, 0.5, 1.0]}
+  mode:      {default: fade, grid: [fade, break]}
+expected_frequency: "~60-70 tier-1 events/yr; ~1 trade on ~70% of events"
+claimed: >
+  No strategy claims. Evidence on the mechanism: Elder, Miao & Ramchander (2012, gold, silver and copper futures,
+  1-minute data): returns respond within the first 5 minutes and the effect dissipates in under an hour, while
+  realised volatility and volume shocks persist longer and fade within ~60 minutes. Sobti (2024, gold jumps): realised
+  volatility and illiquidity return to normal ~10-20 minutes after jumps. Awartani et al. (2024, abstract): gold's FOMC
+  adjustment lasts beyond 5 minutes, with a stronger response to easing surprises.
+assumptions:
+  - "the 15-minute IR, the vol-crush trigger and the fade-to-mid rule are researcher-defined"
+  - "FOMC press-conference start treated as a second event at 14:30 ET"
+data_needed: [XAUUSD_1s, us_macro_calendar]
+sources:
+  - https://mountainscholar.org/bitstreams/21623442-a01d-45a6-879d-d645e781e52a/download
+  - https://www.efmaefm.org/0EFMAMEETINGS/EFMA%20ANNUAL%20MEETINGS/2024-Lisbon/papers/EFMA_COMPLETEMANU_NSOBTI.pdf
+notes: >
+  Rationale: once information is priced (within ~5 min), the remaining post-release range is liquidity-driven, and
+  extremes should act as boundaries while volatility decays. High WR is plausible because the target (mid) is inside
+  a range that has just been established, and the stop sits just outside it. This is different from the tested initial-balance
+  fade A8b (NY 09:30 IB on all days) because it is anchored to the actual release, gated on a measured volatility
+  collapse, and limited to event days. Failure mode: second-wave repricing (e.g. CPI details or a hawkish presser
+  remark). The FOMC presser event and the stop handle part of that.
+---
+id: r2-release-bracket-impulse
+name: First-seconds impulse capture on tier-1 US releases (verified dates only), 1s execution
+mechanism: momentum
+timeframe_signal: 1s
+session: "event-driven: T-60s to T+15min"
+entry:
+  long:  >
+    Tier-1 events from us_macro_calendar (NFP, CPI, core PCE, GDP advance, retail sales, PPI, FOMC statement).
+    Pre-range PR = high/low of XAU mid over [T-15min, T-5s]. At T+s1 seconds: impulse I = mid(T+s1) - mid(T-5s).
+    LONG if I >= k_imp*sd_I (sd_I = std of I over the previous 24 tier-1 events, pooled) AND mid(T+s1) > PR_high,
+    entered at market at T+s1 (+ latency).
+  short: "mirror: I <= -k_imp*sd_I AND mid < PR_low -> SELL"
+  order: market
+stop: "mid(T-5s) (full impulse giveback), or stop_frac*|I| below entry"
+target: "trail: after +1.0*|I| in favour, trail at 0.5*|I|; or fixed tgt_mult*|I|"
+time_exit: "T + exit_min minutes"
+filters:
+  - "skip if spread at T+s1 > spread_cap * 20-day median release-second spread (avoid filling inside a blown-out quote)"
+  - "one trade per event"
+params:
+  s1_sec:     {default: 10, grid: [3, 10, 30, 60]}
+  k_imp:      {default: 1.0, grid: [0.5, 1.0, 1.5]}
+  stop_frac:  {default: 0.75, grid: [0.5, 0.75, 1.0]}
+  tgt_mult:   {default: 1.0, grid: [0.5, 1.0, 2.0, trail]}
+  exit_min:   {default: 5, grid: [2, 5, 15]}
+  spread_cap: {default: 3.0, grid: [2.0, 3.0, 5.0]}
+expected_frequency: "~70-80 tier-1 events/yr"
+claimed: >
+  Elder et al. (2012): the 8:30-8:35 ET interval has the highest explanatory power for gold returns, nonfarm payrolls
+  and durable goods have the largest impact, and positive surprises lower gold. Cai, Cheung & Wong (2001,
+  abstract): employment, GDP, CPI and personal income have the greatest impact on COMEX gold.
+assumptions:
+  - "s1/k_imp/exits researcher-defined; sd_I estimated from prior events only (no look-ahead)"
+  - "assumes cTrader fills at market within ~120ms (re-check with simulate.sim_many latency)"
+data_needed: [XAUUSD_1s, XAUUSD_ticks, us_macro_calendar]
+sources:
+  - https://mountainscholar.org/bitstreams/21623442-a01d-45a6-879d-d645e781e52a/download
+  - https://www.efmaefm.org/0EFMAMEETINGS/EFMA%20ANNUAL%20MEETINGS/2024-Lisbon/papers/EFMA_COMPLETEMANU_NSOBTI.pdf
+notes: >
+  Relation to tested work: T7 used fixed 08:30/10:00 ET anchors on all days, and the skipped C12 card measured a
+  15-min shock then held for drift. This card trades only verified release days, in the first 3-60 seconds, and exits
+  within 15 minutes, i.e. inside the window where Elder et al. find the response. It is also the natural first run
+  of the C12 card once the calendar exists; run C12 too. Costs and slippage at the release second dominate, so
+  require the tick-level check early. WR is likely only ~50-60%, so the edge must come from payoff.
+---
+id: r2-reopen-gap-fade
+name: Weekend / daily-reopen gap fade after spreads normalise
+mechanism: mean_reversion
+timeframe_signal: 1m
+session: "reopen (Sun ~22:00/23:00 UTC; daily break end) to 07:00 UTC (default)"
+entry:
+  long:  >
+    Gap g = first valid mid after the trading break minus the last mid before the break (weekend break, holiday
+    closures, and optionally the daily ~1h break). Normalise gN = g / ATR14(1h) at the break. Wait until the spread
+    has been <= 1.5x its 20-day median for that clock minute for 5 consecutive minutes AND at least delay_min minutes
+    have passed since the reopen. If gN <= -g_min (gap down) and less than fill_max of the gap is already filled, BUY.
+  short: "gap up (gN >= g_min) -> SELL"
+  order: market
+stop: "post-reopen extreme (low for longs) -/+ 0.5*ATR14(1h), or stop_mult*|g| from entry"
+target: "fill tgt_frac of the gap (tgt_frac=1.0 means back to the pre-break price)"
+time_exit: "exit_utc (default 07:00 UTC, before London) or 20:55 UTC"
+filters:
+  - "breaks: weekend (Fri ~21:00 to Sun ~22:00/23:00 UTC), exchange/broker holiday closures, daily break (param include_daily)"
+  - "skip if a known weekend geopolitical shock pushes gN beyond g_cap (continuation regime); param"
+  - "param mode=follow tests gap continuation as a control (QuantifiedStrategies summary: gold gaps tend NOT to mean-revert)"
+params:
+  g_min:         {default: 0.5, grid: [0.3, 0.5, 1.0]}
+  g_cap:         {default: 4.0, grid: [3.0, 4.0, 99]}
+  delay_min:     {default: 30, grid: [10, 30, 60, 120]}
+  fill_max:      {default: 0.5, grid: [0.25, 0.5]}
+  tgt_frac:      {default: 1.0, grid: [0.5, 0.75, 1.0]}
+  stop_mult:     {default: 1.0, grid: [0.5, 1.0, 1.5]}
+  exit_utc:      {default: "07:00", grid: ["03:00", "07:00", "12:00", "20:55"]}
+  include_daily: {default: false, grid: [false, true]}
+  mode:          {default: fade, grid: [fade, follow]}
+expected_frequency: "weekend + holiday reopens ~50/yr; with include_daily and g_min=0.3 roughly +50-100/yr"
+claimed: "TradingView XAUUSD Weekly Gap Indicator: 'XAUUSD often tends to fill these gaps' (no statistics). QuantifiedStrategies (summary via search; page blocked): gold gaps tend not to mean-revert."
+assumptions:
+  - "spread-normalisation entry gate, thresholds and exits researcher-defined"
+  - "XAUUSD 1s data contain the reopen; the first valid price is the first tick with spread below 3x the median"
+data_needed: [XAUUSD_1s, XAUUSD_ticks]
+sources:
+  - https://www.tradingview.com/script/kjcJSG8V-XAUUSD-Weekly-Gap-Indicator-oberlunar/
+  - https://www.gold.org/goldhub/gold-focus/2026/04/you-asked-we-answered-has-golds-performance-structurally-changed
+notes: >
+  Not tested before (registry has no reopen-gap test). The WGC (April 2026) notes the four largest recent spread spikes occurred
+  Sunday night into Monday morning. The reopen print is therefore often an illiquid quote that should partly revert once
+  depth returns, which is why entry waits for spread normalisation. Run fade vs follow as a pair. If neither beats the
+  other on IS, drop the idea. The weekend-only count is too low for the gate, so include_daily matters.
+---
+id: r2-month-end-fix-hedge-flow
+name: Month-end WM/R 4pm fix equity-hedge USD flow (Melvin-Prins) - pre-fix follow + post-fix fade
+mechanism: session_time
+timeframe_signal: 1m
+session: "last London business day of the month, 15:00 London to 20:55 UTC"
+entry:
+  long:  >
+    On the last London business day of the month: m = USA500 return from the last close of the prior month to the
+    close of the second-to-last business day. Foreign holders of US equities must sell more USD to stay hedged
+    when m > 0, so the USD should weaken into the fix and XAU (priced in USD) should rise. If m >= m_min:
+    BUY XAU at 15:00 London (14:00 UTC in BST / 15:00 UTC in GMT), exit at 16:03 London (after the 15:57:30-16:02:30 fix window).
+  short: "m <= -m_min -> SELL XAU 15:00 London, exit 16:03 London"
+  order: market
+stop: "0.75*ATR14(15m) from entry"
+target: "none (time exit)"
+time_exit: "16:03 London for leg 1; leg 2 (param post_fix_fade): enter the opposite direction at 16:05 London, exit 20:55 UTC"
+filters:
+  - "require |USD2 return 14:00-15:00 London| < 1.5 sd (no unrelated macro shock before the window)"
+  - "quarter-end days use m_min/2 (larger rebalancing) - param"
+params:
+  m_min:          {default: 0.02, grid: [0.0, 0.01, 0.02, 0.04]}
+  entry_london:   {default: "15:00", grid: ["14:30", "15:00", "15:30"]}
+  post_fix_fade:  {default: true, grid: [false, true]}
+  qe_boost:       {default: true, grid: [false, true]}
+expected_frequency: "12 per year (~22 events in our data). BELOW the 100-trade gate: evaluate as an overlay/feature or pooled with other flow events, not as a standalone strategy"
+claimed: >
+  Melvin & Prins (BlackRock; J. Financial Markets 2015), 10 G10 currencies 2004-2012: month-to-date equity
+  out-performance predicts currency depreciation from 15:00 to 16:00 London on the last day of the month (panel coefficient
+  -0.0142, p<0.01; a 10% equity rise implies 14bp FX). They also find 72% of that pre-fix hour's move reverses by noon the
+  next day on month-end days, about twice the reversal on other days.
+assumptions:
+  - "applying the hedging channel to USD via US equities and then to gold is the researcher's transfer; the paper uses cross-sectionally demeaned country equity returns, and a foreign-index leg is not in our data (DEU/JPN index CFDs could be downloaded)"
+  - "post-fix fade within the same day (exit 20:55 UTC) captures only part of the reversal the paper measures to noon next day"
+data_needed: [XAUUSD_1s, USA500IDXUSD_m1, EURUSD_m1, USDJPY_m1]
+sources:
+  - https://ecb.eu/events/pdf/conferences/131216/Third_FX_Workshop_MELVIN_PRINS_Equity%20hedging%20and%20exchange%20rates%20Nov%202013.pdf
+notes: >
+  T7 tested the 16:00 fix as a daily anchor (momentum and fade) on all days and failed. This card is the month-end-only,
+  equity-signed version with a published mechanism and sign prediction. That is materially different, but the count is
+  too low to pass the gate alone. Strongest use: as a feature or overlay for other cards on month-end days, or as a quick
+  sign check (22 events, compare with placebo days in the prior week, as the paper does).
+---
+id: r2-comex-expiry-pressure
+name: COMEX gold options expiry / first-notice run-up pressure (with placebo)
+mechanism: session_time
+timeframe_signal: 5m
+session: "expiry day: 08:20-13:35 ET (12:20-17:35 UTC EDT / 13:20-18:35 UTC EST)"
+entry:
+  long:  "variant only (mode=reverse): after expiry close, buy the post-expiry rebound 13:35 ET -> 20:55 UTC"
+  short: >
+    Event days: (a) monthly OG gold options last trading day (default rule: 4 business days before the end of the
+    month preceding the contract month; moved earlier if that is a Friday or the day before a holiday, so verify
+    against the CME calendar); (b) the 2 business days before First Notice Day of the active GC months (Feb, Apr, Jun,
+    Aug, Oct, Dec; FND = last business day of the prior month). On an event day, if XAU's 5-day return >= r5_min*ATR14(D)
+    ("contract out of equilibrium" proxy), SELL at 08:20 ET (COMEX open).
+  order: market
+stop: "1.0*ATR14(1h) above entry, or the session high since 07:00 ET + 0.25*ATR14(1h)"
+target: "none (time exit) or tgt_r*stop distance"
+time_exit: "13:35 ET (after options expiry close); FND-run-up days exit 13:35 ET"
+filters:
+  - "placebo: same rule on days 7-9 business days before month end; the effect must beat the placebo"
+  - "skip if a tier-1 us_macro_calendar release falls on the event day (param)"
+params:
+  event_set: {default: "expiry+fnd", grid: [expiry, fnd, "expiry+fnd"]}
+  r5_min:    {default: 0.5, grid: [0.0, 0.5, 1.0, 1.5]}
+  tgt_r:     {default: none, grid: [none, 1.0, 2.0]}
+  mode:      {default: short, grid: [short, reverse]}
+expected_frequency: "~24 event days/yr (12 expiries + ~12 FND run-up days); BELOW the 100-trade gate - a cheap sign test plus placebo before any optimisation"
+claimed: >
+  Practitioner/newsletter claims only: Goldmoney (2021) describes option writers profiting by pushing the price to
+  maximise abandoned calls before expiry; Gold Investor Research (May 2025) cites the Dec'24 expiry (-2.2% on expiry day)
+  and Mar'25 'smack-downs' when the contract's delta-intrinsic value was large; EconAnalytics (Jan 2025): 'price is
+  hammered in the run up to first notice'. No systematic study found.
+assumptions:
+  - "expiry-date rule summarised from the CME rulebook via search (rulebook PDF not retrievable); verify each date"
+  - "5-day-return proxy replaces the sources' max-pain / delta-IV measures (no options OI data)"
+  - "entry and exit times researcher-chosen around COMEX hours"
+data_needed: [XAUUSD_1s, comex_expiry_calendar]
+sources:
+  - https://www.goldmoney.com/research/market-report-options-expiry-passes-q2-next
+  - https://giresearch.substack.com/p/gold-investors-weekly-update-may-f02
+  - https://econanalytics.substack.com/p/alert-february-gold-open-interest
+notes: >
+  Included because it is a frequently claimed, never-tested calendar effect that is cheap to falsify with a placebo.
+  Expect it to fail. The evidence is anecdotal and selected (the same newsletter admits the May 2025 expiry rallied instead).
+---
+id: r2-vr-regime-kalman-revert
+name: Variance-ratio regime switch with Kalman-level z-score (fade in anti-persistent regime, follow in persistent)
+mechanism: volatility
+timeframe_signal: 5m
+session: "01:00-20:30 UTC"
+entry:
+  long:  >
+    Regime: VR = Var(sum of q consecutive 5m returns) / (q*Var(5m returns)), rolling over the last L_vr bars (overlapping
+    q-sums, Lo-MacKinlay style), smoothed with EMA(12). Level: local-level Kalman filter on 5m closes with
+    signal-to-noise ratio snr = Q/R; residual z = (close - level)/sd(residual over 288 bars).
+    REVERT regime (VR < vr_lo): BUY when z crosses back above -z_in from below.
+    TREND regime (VR > vr_hi): BUY when z crosses above +z_in (breakaway from the filtered level).
+    Neutral (vr_lo <= VR <= vr_hi): no trade.
+  short: "mirror (REVERT: z crosses back below +z_in; TREND: z crosses below -z_in)"
+  order: market
+stop: "REVERT: |z| reaches z_stop; TREND: z crosses back through 0, or 1.5*ATR14(5m)"
+target: "REVERT: z = 0 (back to Kalman level); TREND: trail 1.0*ATR14(5m) after +1 ATR"
+time_exit: "max 48 bars or 20:55 UTC"
+filters:
+  - "skip +/-15 min around tier-1 us_macro_calendar releases"
+  - "regime must hold for >= 6 bars before the first entry"
+params:
+  q:      {default: 6, grid: [3, 6, 12]}
+  L_vr:   {default: 576, grid: [288, 576, 1152]}
+  vr_lo:  {default: 0.85, grid: [0.8, 0.85, 0.9]}
+  vr_hi:  {default: 1.15, grid: [1.1, 1.15, 1.25]}
+  snr:    {default: 0.01, grid: [0.001, 0.01, 0.1]}
+  z_in:   {default: 2.0, grid: [1.5, 2.0, 2.5]}
+  z_stop: {default: 3.5, grid: [3.0, 3.5, 4.5]}
+  regime_branch: {default: both, grid: [revert_only, trend_only, both]}
+expected_frequency: "~1-2 per day when a regime is active"
+claimed: "none (indicator libraries describe Hurst/VR as regime filters only; no performance published)"
+assumptions:
+  - "the whole rule set (VR thresholds, Kalman snr, switch logic) is researcher-defined"
+  - "the variance ratio is used instead of Hurst because R/S is biased on short windows (per LuxAlgo); a Hurst-DFA variant can be a param"
+data_needed: [XAUUSD_1s, us_macro_calendar]
+sources:
+  - https://www.luxalgo.com/library/concept/hurst-exponent.md
+  - https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5407636/
+notes: >
+  The tested VWAP/BB/RSI fades (B6-B8) were unconditional. This card trades only when a measured serial-dependence
+  regime supports the direction of the trade, and uses an adaptive Kalman level instead of a session anchor. Weakest
+  evidence of the round. Include it only as a statistical baseline for regime gating. If the REVERT branch beats the
+  unconditional B8 result on IS, the gate is worth reusing as a filter on other cards.
+---
+id: r2-tick-intensity-imbalance-follow
+name: Minute-level quote-intensity surge with directional quote imbalance (spread-regime gated)
+mechanism: momentum
+timeframe_signal: 1m
+session: "07:00-20:00 UTC"
+entry:
+  long:  >
+    From XAUUSD ticks per 1m bar: N = number of quote updates; imbalance IMB = (mid upticks - mid downticks)/(upticks + downticks);
+    spread s = median spread in the bar. zN = (N - median_N(clock minute, 20d)) / MAD-scaled sd. Trigger when zN >= zN_min AND
+    IMB >= imb_min AND the bar's mid return > 0 AND s <= s_cap * 20-day median spread for that clock minute (a "liquid" surge,
+    not a news blow-out). Persistence check: the following 1m bar keeps IMB > 0. Enter LONG at the open of the next bar.
+  short: "mirror with IMB <= -imb_min and negative return"
+  order: market
+stop: "low of the trigger bar - 0.25*ATR14(1m)"
+target: "tgt_r * stop distance, or a time exit"
+time_exit: "hold_min minutes after entry"
+filters:
+  - "skip [-2, +10] min around us_macro_calendar releases"
+  - "variant mode=fade_wide: when s > s_cap (illiquid surge), FADE the move instead (liquidity-driven); compare branches"
+  - "max 1 trade per 15 min"
+params:
+  zN_min:   {default: 3.0, grid: [2.0, 3.0, 4.0]}
+  imb_min:  {default: 0.3, grid: [0.2, 0.3, 0.45]}
+  s_cap:    {default: 1.5, grid: [1.2, 1.5, 2.0]}
+  tgt_r:    {default: 1.5, grid: [1.0, 1.5, 2.5]}
+  hold_min: {default: 10, grid: [5, 10, 20]}
+  mode:     {default: follow, grid: [follow, fade_wide]}
+expected_frequency: "~1-4 per day"
+claimed: "none for gold. Cont, Cucuringu & Zhang (equities): lagged OFI improves return forecasts, but the effect decays rapidly with horizon."
+assumptions:
+  - "quote-direction imbalance from mid changes is a proxy for order-flow imbalance (no trade or volume data in the Dukascopy ticks: ts, bid, ask only)"
+  - "all thresholds and the spread-regime split are researcher-defined"
+data_needed: [XAUUSD_ticks, XAUUSD_1s, us_macro_calendar]
+sources:
+  - https://arxiv.org/abs/2112.13213
+  - https://arxiv.org/abs/1011.6402
+  - https://www.efmaefm.org/0EFMAMEETINGS/EFMA%20ANNUAL%20MEETINGS/2024-Lisbon/papers/EFMA_COMPLETEMANU_NSOBTI.pdf
+notes: >
+  T3 found no edge in sub-5s order-flow features after costs. This card is 1-minute scale, conditions on a clock-normalised
+  intensity surge, and splits by spread regime, which is a distinct hypothesis. Sobti (2024) reports order imbalance and illiquidity
+  as strong predictors of gold jumps. Low prior: the literature says OFI effects decay within seconds to minutes,
+  so treat the screen result as decisive.
