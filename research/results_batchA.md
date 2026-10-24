@@ -92,3 +92,11 @@ Rerun notes
   - noise_area_momentum: anchor trimmed to 07:00 to fit the 141-combo budget.
   - crabel_orb_stretch: the card's target variant did not fit the 141-combo budget.
 - The old `shanghai_open.py` is kept for the record. It is superseded by shanghai_orb and shfe_open_mom.
+
+## Documentation addenda (after the rerun review; no backtests run)
+- **london_range_retest, exit-template neighbour median.** The selector (scratchpad `select.py`, function `tpl_neighbours`) used these neighbours: same template family; ±1 step in sl (all other keys fixed) and ±1 step in the final tp (tp1, f1 and be fixed); for the trail family, ±1 step in sl and in trail. The median was the plain median over the neighbours that exist, **excluding the template itself**; there are only two neighbours when a template sits at a grid edge. IS values from `results/london_range_retest_opt_exits.csv` (finalist retest_win 24, stop_atr 1.0, target_r 3.0):
+  - fixed sl 0.5 / tp 3.0, IS PF(R) 1.408: neighbours sl 1.0 / tp 3.0 = 1.302 and sl 0.5 / tp 2.0 = 1.253 → median 1.278 < 1.30 → not eligible.
+  - scalp_be sl 2 / tp1 0.5 / f1 0.5 / tp 3, IS PF(R) 1.386: neighbours sl 1 = 1.161, sl 3 = 1.360, tp 1.5 = 1.372 → median 1.360 ≥ 1.30 → chosen.
+  - The boss's re-application picked fixed sl 0.5 / tp 3.0 (1.41). This depends on how the neighbour median is defined (e.g. including the template itself gives median 1.302 ≥ 1.30), right at the 1.30 threshold. Per the review, no rerun is made, and the VAL row of the alternative was not looked at.
+- **shfe_open_mom, combo count.** `exit_utc` does nothing for the night anchor, which is always held to 15:00 UTC. The 9 night-anchor stage-1 rows are therefore 3 distinct settings (q 0.0 / 0.5 / 1.0) each repeated 3 times. Distinct stage-1 settings = 9 day + 3 night = 12 of the 18 rows run. Counted combos: 18 + 159 = 177 run, of which 171 distinct (12 + 159). The repeated rows also inflate the plateau score's neighbour count for night settings.
+- **Process note for future batches:** commit the selection rule in its own commit before running the grid.
