@@ -158,3 +158,11 @@ and it failed OOS.
   tier-1 set is NFP, CPI, PPI, FOMC statement, retail sales, GDP advance, PCE, ISM manufacturing/services and JOLTS.
   "Any release" filters (usd_impulse_catchup, tick_intensity_follow) use every row.
 - Each screen ran once. gold_silver_residual's first screen used a DST proxy before the calendar landed, and it was re-screened on the calendar.
+
+### Post-review notes (boss review research/reviews/batchD1.md: ACCEPT, documentation only)
+- **riskoff_rebound variants are closed.** The long-only variant (e.g. W 30, kN 2, kG 2: IS PF(R) 1.93 on n 59)
+  and a USA500-proxy variant (card param, never run) are closed and are not to be revived under any id.
+  riskoff_rebound's verdict (REJECT on IS) is final.
+- **gold_silver_residual post-fix VAL row.** The post-fix finalist was already rejected on IS
+  (IS PF(R) 1.12 < 1.30) before its VAL row (PF 0.80) was printed. That row informed no decision; it is
+  shown for completeness only.
