@@ -97,3 +97,17 @@ Batch C observation: the time-of-day ideas earn their IS edge from 2025's bull-t
 | D1-7 | vr_kalman_regime: variance-ratio regime + Kalman-level z (revert/trend) | 240 | IS 1.73 (PF(R) 1.66), 59.8, 87 / VAL 0.79, 55.0, 40 | REJECT at VAL | `strategies/vr_kalman_regime.py` |
 
 Batch D1 observation: none of the cross-asset or statistical ideas meets the WR/PF gates on IS. The two IS winners (vr_kalman, usd_impulse with the silver leader) sit at grid corners and break down in VAL or OOS.
+
+### Batch D2: macro-calendar (research/results_batchD2.md; verified calendar data/calendar/us_macro_2025_2026.csv; selection rule committed in 5e2a6ea before any grid)
+
+| ID | Idea | Combos | Finalist IS / VAL / OOS (PF, WR, n) | Placebo | Verdict | Where |
+|---|---|---|---|---|---|---|
+| D2-1 | post_release_revert: fade small initial reaction to 08:30/10:00 ET releases (own-reaction surprise proxy) | 214 | IS 0.96 (PF(R) 0.88), 70.0, 60 / VAL 0.73, 63.0, 27 / – | IS PF 0.59 | REJECT (IS) | `strategies/post_release_revert.py` |
+| D2-2 | pre_release_drift: pre-release drift into 10:00 ET releases, USA500/USD votes | 108 | max n_IS 42; best n ≥ 30 PF(R) 0.83 | real 0.64 vs placebo 1.25 PF(R) | INELIGIBLE (X7) | `strategies/pre_release_drift.py` |
+| D2-3 | release_range_crush: fade re-tests of the 15-min release range after a vol crush | 213 | IS 1.02 (PF(R) 1.03), 48.4, 95 / VAL 1.45, 52.4, 42 / – | IS PF(R) 0.49 | REJECT (IS) | `strategies/release_range_crush.py` |
+| D2-4 | release_bracket: first-seconds impulse beyond the pre-range, tier-1(+2) releases | 108 | max n_IS 44; defaults IS PF 0.66 (stress 0.45, raw spread 0.58), n16 | 1 trade | INELIGIBLE (X7) | `strategies/release_bracket.py` |
+| D2-5 | macro_shock: NFP/CPI 15-min shock continuation (was C12, skipped) | 12 | defaults IS 0.49, 40.0, 10 / VAL 0.42, 5 | IS PF 2.01 | INELIGIBLE (X7); sign wrong | `strategies/macro_shock.py` |
+| D2-6 | month_end_fix: month-end 4pm-fix equity-hedge flow (USA500 MTD sign) | screen + 5 variants | defaults IS 0.55, 18.8, 16 / VAL 0.27, 4 | IS PF 0.11 | REJECT (sign check) | `strategies/month_end_fix.py` |
+| D2-7 | comex_expiry: short on OG expiry / FND run-up days after a 5-day rally | screen + 5 variants | defaults IS 0.35, 25.0, 8 / VAL 6.05, 5 | IS PF 1.66 (beats real) | REJECT (placebo) | `strategies/comex_expiry.py` |
+
+Batch D2 observation: no OOS run (nothing qualified). Release-day effects that beat placebo (small-reaction fade, range-crush fade) are breakeven after costs; most event cards cannot reach 60 IS trades with the verified 2025 calendar.
