@@ -68,19 +68,21 @@ def signals(ctx, d_entry=2, z_min=1.0, v_min=2, event_set="ISM_only", exit_min=5
     t830 = set(cal[(cal.time_local == "08:30") & cal.event.isin(T830_SKIP)].date_local)
     wd = [x.date() for x in pd.bdate_range("2024-10-01", "2026-12-31") if x.date() not in set(D.US_HOLIDAYS)]
     base = {}
+    b1i = ctx.bars(60).index.values
     for mnt in (510, 600):
         days = [d for d in wd if str(d) not in busy[mnt]]
         Tb = D.ny_sec([str(d) for d in days], [mnt] * len(days))
         g, s_, u = _window_returns(ctx, Tb, d_entry)
         sp = D.spread_at(ctx, Tb - d_entry * 60)
-        base[mnt] = pd.DataFrame(dict(T=Tb, g=g, s=s_, u=u, sp=sp)).dropna(subset=["g"])
+        live = np.isin(Tb - 1860, b1i) & np.isin(Tb - d_entry * 60 - 60, b1i)   # XAU bars exist (no pre-data days)
+        base[mnt] = pd.DataFrame(dict(rt=Tb, g=g, s=s_, u=u, sp=sp))[live].dropna(subset=["g"])
     b5 = ctx.bars(300); a5 = bt1s.atr(b5, 14); c5 = b5.close_sec.values
     rows = []
     for _, e in ev.iterrows():
         T = int(e.sec); mnt = int(e.minute)
         if skip_830 and mnt == 600 and e.date in t830:
             continue
-        bb = base[mnt]; prev = bb[bb.T < T - 3600].tail(40)
+        bb = base[mnt]; prev = bb[bb.rt < T - 3600].tail(40)
         if len(prev) < 30:
             continue
         g, s_, u = (x[0] for x in _window_returns(ctx, np.array([T]), d_entry))

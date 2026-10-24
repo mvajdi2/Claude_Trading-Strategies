@@ -1,44 +1,42 @@
-Traceback (most recent call last):
-  File "/tmp/claude-0/-home-user/405309f6-9439-5eec-81da-30425b05b64c/scratchpad/screen.py", line 4, in <module>
-    rep=E.screen(sid)
-  File "/home/user/xau_hf/evaluate.py", line 79, in screen
-    sig = visible(mod.signals(ctx(), **params))
-                  ~~~~~~~~~~~^^^^^^^^^^^^^^^^^
-  File "/home/user/xau_hf/strategies/pre_release_drift.py", line 109, in signals
-    return s[np.isfinite(s.sl) & (s.sl > 0.05)].sort_values("sec").reset_index(drop=True)
-             ~~~~~~~~~~~^^^^^^
-  File "/usr/local/lib/python3.13/dist-packages/pandas/core/generic.py", line 2048, in __array_ufunc__
-    return arraylike.array_ufunc(self, ufunc, method, *inputs, **kwargs)
-           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/usr/local/lib/python3.13/dist-packages/pandas/core/arraylike.py", line 402, in array_ufunc
-    result = getattr(ufunc, method)(*inputs, **kwargs)
-TypeError: ufunc 'isfinite' not supported for the input types, and the inputs could not be safely coerced to any supported types according to the casting rule ''safe''
-Traceback (most recent call last):
-  File "/tmp/claude-0/-home-user/405309f6-9439-5eec-81da-30425b05b64c/scratchpad/controls.py", line 28, in <module>
-    tr = run(params, label="REAL")
-  File "/tmp/claude-0/-home-user/405309f6-9439-5eec-81da-30425b05b64c/scratchpad/controls.py", line 17, in run
-    sig = E.visible(mod.signals(ctx, **kw))
-                    ~~~~~~~~~~~^^^^^^^^^^^
-  File "/home/user/xau_hf/strategies/month_end_fix.py", line 49, in signals
-    grp = bds.groupby([(x.year, x.month) for x in bd])
-  File "/usr/local/lib/python3.13/dist-packages/pandas/util/_decorators.py", line 336, in wrapper
-    return func(*args, **kwargs)
-  File "/usr/local/lib/python3.13/dist-packages/pandas/core/series.py", line 2057, in groupby
-    return SeriesGroupBy(
-        obj=self,
-    ...<6 lines>...
-        dropna=dropna,
-    )
-  File "/usr/local/lib/python3.13/dist-packages/pandas/core/groupby/groupby.py", line 1095, in __init__
-    grouper, exclusions, obj = get_grouper(
-                               ~~~~~~~~~~~^
-        obj,
-        ^^^^
-    ...<4 lines>...
-        dropna=self.dropna,
-        ^^^^^^^^^^^^^^^^^^^
-    )
-    ^
-  File "/usr/local/lib/python3.13/dist-packages/pandas/core/groupby/grouper.py", line 901, in get_grouper
-    raise KeyError(gpr)
-KeyError: (2024, 12)
+[screen] pre_release_drift defaults={'d_entry': 2, 'z_min': 1.0, 'v_min': 2, 'event_set': 'ISM_only'}
+      n  per_wk     wr            pf           pfR  expR  ret_pct  dd_pct  avg_hold_min
+IS  2.0    0.06  100.0  4.976500e+09  6.653856e+08  0.33     0.33     0.0           7.0
+pre_release_drift signals IS+VAL 2 long 2 short 0
+      count    mean   std     min     25%     50%     75%     max
+sl      2.0   11.07  7.33    5.89    8.48   11.07   13.65   16.24
+tp      2.0    0.00  0.00    0.00    0.00    0.00    0.00    0.00
+hold    2.0  420.00  0.00  420.00  420.00  420.00  420.00  420.00
+--- REAL  (signals 20)
+        n  per_wk     wr    pf   pfR  expR  ret_pct  dd_pct  avg_hold_min
+IS   16.0    0.41  18.75  0.55  0.56 -0.37    -3.00    5.13         59.01
+VAL   4.0    0.97  25.00  0.27  0.28 -0.57    -1.13    1.57         29.89
+long/short split:
+             n  per_wk    wr    pf   pfR  expR  ret_pct  dd_pct  avg_hold_min
+IS_long    8.0    0.21  25.0  1.06  1.18  0.14     0.51    2.56         32.46
+IS_short   8.0    0.21  12.5  0.08  0.04 -0.88    -3.49    3.64         85.55
+VAL_long   2.0    0.48  50.0  0.89  0.80 -0.11    -0.11    0.56         44.54
+VAL_short  2.0    0.48   0.0  0.00  0.00 -1.02    -1.02    1.02         15.23
+--- PLACEBO (matched no-release days, same clock time)  (signals 18)
+        n  per_wk     wr    pf   pfR  expR  ret_pct  dd_pct  avg_hold_min
+IS   12.0    0.28  16.67  0.11  0.12 -0.77    -4.55    4.55         76.98
+VAL   6.0    0.72  50.00  1.45  1.85  0.44     1.31    1.03         96.42
+--- CONTROL leg1_only {'leg': '1'}  (signals 10)
+       n  per_wk    wr    pf   pfR  expR  ret_pct  dd_pct  avg_hold_min
+IS   8.0    0.21  25.0  1.07  1.13  0.10     0.37    2.68         28.59
+VAL  2.0    0.48  50.0  0.89  0.80 -0.11    -0.11    0.56         44.54
+--- CONTROL leg2_only {'leg': '2'}  (signals 10)
+       n  per_wk    wr    pf   pfR  expR  ret_pct  dd_pct  avg_hold_min
+IS   8.0    0.21  12.5  0.08  0.04 -0.85    -3.36    3.51         89.42
+VAL  2.0    0.48   0.0  0.00  0.00 -1.02    -1.02    1.02         15.23
+--- CONTROL m_min0_both {'m_min': 0.0}  (signals 30)
+        n  per_wk     wr    pf   pfR  expR  ret_pct  dd_pct  avg_hold_min
+IS   22.0    0.46  22.73  0.72  0.68 -0.25    -2.80    5.90         76.81
+VAL   8.0    0.47  25.00  2.12  0.91 -0.07    -0.34    2.23         54.82
+--- CONTROL m_min0_leg1 {'m_min': 0.0, 'leg': '1'}  (signals 15)
+        n  per_wk     wr    pf   pfR  expR  ret_pct  dd_pct  avg_hold_min
+IS   11.0    0.23  18.18  0.65  0.79 -0.17    -0.98    2.98         32.27
+VAL   4.0    0.24  25.00  0.14  0.28 -0.57    -1.13    1.13         24.74
+--- CONTROL m_min0_leg2 {'m_min': 0.0, 'leg': '2'}  (signals 15)
+        n  per_wk     wr    pf   pfR  expR  ret_pct  dd_pct  avg_hold_min
+IS   11.0    0.23  27.27  0.81  0.55 -0.33    -1.83    4.00        121.34
+VAL   4.0    0.24  25.00  5.23  1.51  0.42     0.80    1.63         84.89
