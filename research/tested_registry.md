@@ -30,3 +30,23 @@ Observation: every candidate so far degraded from June 2026; treat regime robust
 | A11 | shanghai_open: Shanghai 01:30 5 m ORB / SHFE open half-hour momentum | 120 | IS 1.28, 56.2 / VAL 0.82, 43.1 | REJECT at screen | `strategies/shanghai_open.py` |
 
 Batch A observation: scalp + break-even exits produce 85–95 % IS WR on breakout entries, but none holds on VAL. No Batch A idea passes.
+
+## Batch B (reversal, structure, mean reversion), 1s engine, staged `evaluate.py`; details in `research/results_batchB.md`
+
+| ID | Idea | Combos | Best IS-selected IS / VAL / OOS (PF, WR) | Verdict | Where |
+|---|---|---|---|---|---|
+| B1a | asian_range_fakeout: Asian range (00–06) H1 close-outside / close-back-inside fade | 255 | IS PF 0.93, 40.6 (n69) / VAL 0.23, 17.4 | REJECT at screen | `strategies/asian_range_fakeout.py` |
+| B1b | asian_range_fakeout_15m: same, 15m closes + range filter | 267 | IS 1.19, 92.7 (n151) / VAL 1.20, 89.4 (PF(R) 0.68) | REJECT at screen | `strategies/asian_range_fakeout_15m.py` |
+| B2 | level_sweep_reclaim: Turtle Soup on N-bar 15m channel (stop entry back through old extreme) | 213 | IS 1.05, 51.0 (n145) / VAL 0.46, 45.8 | REJECT at screen | `strategies/level_sweep_reclaim.py` |
+| B3 | raschke_8020: fade the day after open/close at opposite extremes (+ Oops variant) | 2 | IS PF(R) 0.51 (n28) / oops 0.76 (n76) | REJECT (ineligible by trade count; oops fails screen) | `strategies/raschke_8020.py` |
+| B4 | wyckoff_spring: 5m spring/upthrust out of a 2-touch range | 231 | IS 1.35, 36.7 (n60) / VAL 0.40, 31.8 | REJECT at screen | `strategies/wyckoff_spring.py` |
+| B5 | mp_80pct: Market Profile 80 % rule (re-entry into prior value area) | 195 | IS 1.17, 42.9 (n70) / VAL 1.72, 58.3 | REJECT at screen (IS PF(R) 1.20 < 1.3) | `strategies/mp_80pct.py` |
+| B6 | bb_pinbar_fade: BB(20) close-outside + pin bar, H1 EMA200 aligned (5m) | 248 | IS 1.50, 49.4 (n81) / VAL 2.13, 58.1 (n31) / OOS 0.52, 39.4 (n33) | OOS FAIL | `strategies/bb_pinbar_fade.py`, `strategy_cards/bb_pinbar_fade.frozen.json` |
+| B7 | rsi_extreme_fade: RSI14 extreme with EMA200 filter | 125 | IS 1.24, 40.5 (n116) / VAL 1.80, 43.2 | REJECT at screen (IS PF(R) 1.17) | `strategies/rsi_extreme_fade.py` |
+| B8 | vwap_sd_fade: session VWAP sigma-band re-entry fade to VWAP | 177 | IS 0.91, 37.1 (n350) / VAL 0.43, 31.6 | REJECT at screen | `strategies/vwap_sd_fade.py` |
+| B9 | overreaction_fade: time-of-day vol-normalised 30m overreaction fade | 207 | IS 1.30, 71.4 (n140) / VAL 1.12, 67.9 | REJECT at VAL | `strategies/overreaction_fade.py` |
+| B10 | round_level: $10/20/50 round-number first touch, bounce vs break, placebo offset 10.37 | 255 | IS 1.45, 81.9 (n72, step 50 break) / VAL 0.36, 54.8; real vs placebo median IS PF(R) 0.804 vs 0.800 | REJECT at VAL (no level effect) | `strategies/round_level.py` |
+| B11 | silver_bullet (ICT) | 0 | – | SKIPPED – ICT/SMC excluded by user | – |
+| B12 | taylor_sweep (sweep + VWAP/EMA reclaim) | 0 | – | SKIPPED – ICT/SMC excluded by user | – |
+
+Batch B observation: no reversal or mean-reversion idea reached PF ≥ 1.5 on IS with n ≥ 60. The round-number "effect" equals its placebo.
