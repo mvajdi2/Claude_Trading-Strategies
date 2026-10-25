@@ -1,0 +1,33 @@
+{
+  "Chart": {
+    "Symbol": "XAUUSD",
+    "Period": "m1"
+  },
+  "Parameters": {
+    "OrderLabel": "VCSR_XAUUSD-CH",
+    "RiskPercent": 0.5,
+    "MaxSpreadUsd": 0.35,
+    "CooldownSeconds": 180,
+    "MaxHoldSeconds": 3600,
+    "LiquidHoursOnly": true,
+    "StructuralWindowSec": 14400,
+    "MinImpulse5sUsd": 3.2,
+    "MinImpulseStdMult": 0.35,
+    "MinRejectionRatio": 0.6,
+    "MinSweepUsd": 0.1,
+    "MinReEntryUsd": 0.15,
+    "MinStd900": 5.0,
+    "MinStd3600": 7.5,
+    "MaxRatio900To3600": 1.0,
+    "MinRatio3600To14400": 0.35,
+    "MinZ14400": 1.5,
+    "UseCushionRatchetRunner": true,
+    "Tp1Mult": 0.7,
+    "Tp2Mult": 2.2,
+    "SlMult": 5.5,
+    "Tp1CloseFraction": 0.65,
+    "CushionSlMult": -1.0,
+    "RatchetTriggerMult": 1.1,
+    "RatchetLockMult": 0.5
+  }
+}

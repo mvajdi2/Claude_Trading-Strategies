@@ -6,3 +6,5 @@ data/*.npz
 data/*.pkl
 data/m1raw/
 data/m1/
+cbots/build/bin/
+cbots/build/obj/
