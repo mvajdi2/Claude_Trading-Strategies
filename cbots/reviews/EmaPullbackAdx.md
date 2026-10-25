@@ -1,4 +1,4 @@
-# EmaPullbackAdx — PASS
+# EmaPullbackAdx — PASS (re-review 2026-10-25; initial verdict PASS)
 
 Compile: 0 errors / 0 warnings
 `cd cbots/build && flock /tmp/cbot_build.lock dotnet build -nologo -v q -p:Bot=EmaPullbackAdx -warnaserror` (2026-10-25T11:17:47Z, cTrader.Automate 1.0.21).
@@ -66,3 +66,22 @@ None required for PASS. Optional:
 | Time exit | hold → 20:45 UTC | TimeExit 20:45 (+ force flat 20:55) | yes |
 | Max per day | `groupby(day).head(2)` counts signals | `_signalsToday` counted before the trade guards | yes |
 | One position | `bt1s.run` busy_until | MaxOpenPositions 1 | yes |
+
+---
+## Re-review (commits 1fcb0d0, 2b92bf6, b2590b1)
+Re-compiled at HEAD b2590b1 (includes csproj `UseSharedCompilation=false`, 8444ef4): `cd cbots/build && flock /tmp/cbot_build.lock dotnet build -nologo -v q -p:Bot=<Bot> -warnaserror` → **0 errors / 0 warnings** (2026-10-25 11:36Z). Preset keys == property names, defaults == preset == frozen values, every numeric parameter has Min/Max/Step (re-checked by script); 1 Robot class, UTC/AccessRights.None; no DateTime.Now/Random/TimeZoneInfo. The committed `.algo` was built from the current source (no source change since the `.algo` commit); note that `.algo` packaging is not byte-reproducible (two consecutive builds of identical source differ), so rebuild diffs are noise and were reverted.
+
+| Item | Status | Notes |
+|---|---|---|
+| Opt. 1 daily-loss counts TP1 partial | done, correct | `RealisedToday()` (EmaPullbackAdx.cs:639) sums `History` NetProfit (per closing deal, so the TP1 partial is its own entry, incl. its commission share) for **Label AND SymbolName**, `ClosingTime >= _day` (UTC date, robot TZ UTC); + unrealised NetProfit of open positions. Iterates from the newest entry and stops at the first one before today, so cost per tick is O(today's deals) — cheap, not a full history scan. |
+| Opt. 2 reason string | done | built from TimeExit / ForceFlat parameters (line 267). |
+| Opt. 3 docs broker-min clamp | done | Known differences §8. |
+| Extra: unit in comment | done, correct | `BuildComment`: `TradeComment|u=<F3, InvariantCulture>`, truncates TradeComment so total ≤ 100 chars; label untouched. `ParseCommentValue`: `LastIndexOf("|u=")`, `TryParse(Float, InvariantCulture)`, requires > 0, else NaN → fallback |entry−SL|/SlMult. Tested in a .NET 8 harness under de-DE / fr-FR / en-US: round-trips 3.142 in all cultures; null/empty/missing/garbled/"1,5"/negative/0/trailing text → NaN (fallback); 150-char TradeComment → 100-char comment still parses. |
+| Extra: adoption at/after BE | done, correct | stop at/past entry → `Tp1Done = true` (no second partial), trailing enabled if configured; without tag and at BE the position is left to its broker SL/TP (logged). |
+
+New findings (all MINOR, none blocking):
+1. `ParseCommentValue` accepts `"Infinity"` (TryParse with NumberStyles.Float) — add `!double.IsInfinity(x)`. Only a hand-edited comment could contain it.
+2. `RealisedToday()`'s early `break` assumes `History` is ordered by closing time (true for trades appended as they close). If it ever weren't, the sum would undercount (guard less conservative). Bots 3–5 do a full `FindAll` scan once a minute instead; either is acceptable.
+3. Fallback message at line 242 says "stop at break-even" also when the position has no SL at all — cosmetic.
+
+**Final verdict: PASS** (0 blockers, 0 majors). No regressions found; signal and exit logic unchanged by the diff.

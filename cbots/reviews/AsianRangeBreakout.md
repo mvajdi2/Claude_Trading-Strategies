@@ -1,4 +1,4 @@
-# AsianRangeBreakout — FIX
+# AsianRangeBreakout — PASS (re-review 2026-10-25; initial verdict FIX)
 
 Compile: 0 errors / 0 warnings
 `cd cbots/build && flock /tmp/cbot_build.lock dotnet build -nologo -v q -p:Bot=AsianRangeBreakout -warnaserror` (2026-10-25T11:17:51Z, cTrader.Automate 1.0.21).
@@ -68,3 +68,21 @@ Checklist results (all OK):
 | Native exit | sl = up − dn, tp = 1.5·W | `ExitStyle.Native` | yes |
 | Flat | hold → 16:00 UTC | `StrategyFlatHourUtc` 16 (+ force flat 20:55) | yes |
 | Trades per day | 1 (one touch per day) | MaxTradesPerDay 1, OCO | yes, except finding 1 |
+
+---
+## Re-review (commits bcad00f, a49f5b2, 19dea4c)
+Re-compiled at HEAD b2590b1 (includes csproj `UseSharedCompilation=false`, 8444ef4): `cd cbots/build && flock /tmp/cbot_build.lock dotnet build -nologo -v q -p:Bot=<Bot> -warnaserror` → **0 errors / 0 warnings** (2026-10-25 11:36Z). Preset keys == property names, defaults == preset == frozen values, every numeric parameter has Min/Max/Step (re-checked by script); 1 Robot class, UTC/AccessRights.None; no DateTime.Now/Random/TimeZoneInfo. The committed `.algo` was built from the current source (no source change since the `.algo` commit); note that `.algo` packaging is not byte-reproducible (two consecutive builds of identical source differ), so rebuild diffs are noise and were reverted.
+
+| Item | Status | Notes |
+|---|---|---|
+| 1 (MAJOR) OCO double fill | **fixed, correct** | `OnPositionOpened` (AsianRangeBreakout.cs:559–575): after the sibling cancel, if any *other* position with this Label+Symbol is open (`Any(q => q.Id != p.Id)`) or `_tradesToday >= MaxTradesPerDay`, the new position is closed at market (`ClosePosition` result printed), remaining pendings cancelled, and it is **not** registered, so `_tradesToday` stays 1. First fill of the day: no other position, count 0, so it is registered normally and its SL/TP re-based. Docs: hedging account required, netting behaviour explained, "OCO double fill" bullet rewritten. |
+| 2 start-up line | done | `Print` with earliest m1/m5 bar, daily rows (needs 15), RV days (needs 60). |
+| 3 docs vol-state window | done | growing 60→250 window in Python vs full window in the cBot, LoadMoreHistory caveat, how to read the start-up line, start ≥ 3 months earlier. |
+| 4 docs min-distance side skip | done | "Minimum stop distance" section. |
+| 5 close guard | done, correct | `ClosePos` keeps `_closing[id] = time`; at most one attempt per position per minute; entry removed on `Positions.Closed`. Strategy-flat, force-flat, max-hold, crossed-stop and daily-loss closes all go through it. |
+| 6 `_nextUnit` removed | done | re-base now keyed on `_pendUnit` only — behaviour unchanged for the first fill. |
+| Extra: History daily loss | correct | `RecomputeRealized()` = `History.FindAll(Label, SymbolName)` (label AND symbol) with `ClosingTime >= _day` (UTC date), called on each close, after a TP1 partial, and at most once a minute from OnTick (`_realizedAt`), so it is not recomputed every tick; + unrealised NetProfit. After midnight `_realizedToday` resets to 0, which is correct for the new day. |
+
+New findings (MINOR): docs line 167–168 repeat "realised P&L from history since 00:00 UTC plus open P&L" after the new parenthesis — cosmetic, delete the duplicate.
+
+**Final verdict: PASS** (0 blockers, 0 majors). The MAJOR is resolved and no regressions were found in range, filter, OCO placement or exit code.

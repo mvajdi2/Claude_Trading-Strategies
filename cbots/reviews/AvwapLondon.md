@@ -1,4 +1,4 @@
-# AvwapLondon — PASS
+# AvwapLondon — PASS (re-review 2026-10-25; initial verdict PASS)
 
 Compile: 0 errors / 0 warnings
 `cd cbots/build && flock /tmp/cbot_build.lock dotnet build -nologo -v q -p:Bot=AvwapLondon -warnaserror` (2026-10-25T11:17:56Z, cTrader.Automate 1.0.21).
@@ -61,3 +61,16 @@ None required for PASS. Optional:
 | Max per day | `groupby(close_sec day).head(2)` | MaxSignalsPerDay 2 on the close day | yes |
 | Flat | hold → 20:55 | ForceFlat 20:55 | yes |
 | Fade2Sd mode | O beyond the previous bar's 2σ, C back inside, same group; d = bar extreme + 0.25·ATR; tp = |C − vw| | identical | yes |
+
+---
+## Re-review (commits bcad00f, a49f5b2, 19dea4c)
+Re-compiled at HEAD b2590b1 (includes csproj `UseSharedCompilation=false`, 8444ef4): `cd cbots/build && flock /tmp/cbot_build.lock dotnet build -nologo -v q -p:Bot=<Bot> -warnaserror` → **0 errors / 0 warnings** (2026-10-25 11:36Z). Preset keys == property names, defaults == preset == frozen values, every numeric parameter has Min/Max/Step (re-checked by script); 1 Robot class, UTC/AccessRights.None; no DateTime.Now/Random/TimeZoneInfo. The committed `.algo` was built from the current source (no source change since the `.algo` commit); note that `.algo` packaging is not byte-reproducible (two consecutive builds of identical source differ), so rebuild diffs are noise and were reverted.
+
+| Item | Status | Notes |
+|---|---|---|
+| 1 DrawLevels accumulation | fixed | `DrawSession`: objects are tracked in `_drawn` and removed when the VWAP group changes, so at most about 3×288 objects exist; still only when `_canDraw && _warm` (no-op in optimisation and silent backtests). |
+| 2 docs tick data | done | "Tick data from server … is REQUIRED". |
+| Extra: close guard + History daily loss | correct | same as AsianRangeBreakout (Label+Symbol, UTC day, at most once a minute plus on close/partial; once-a-minute close attempts). |
+| VWAP / pullback / trailing | unchanged | the only code moved is the drawing block; signal state and `_prevVw` handling are untouched. |
+
+**Final verdict: PASS** (0 blockers, 0 majors).

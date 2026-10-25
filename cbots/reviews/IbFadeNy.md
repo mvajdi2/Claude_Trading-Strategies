@@ -1,4 +1,4 @@
-# IbFadeNy — PASS
+# IbFadeNy — PASS (re-review 2026-10-25; initial verdict PASS)
 
 Compile: 0 errors / 0 warnings
 `cd cbots/build && flock /tmp/cbot_build.lock dotnet build -nologo -v q -p:Bot=IbFadeNy -warnaserror` (2026-10-25T11:17:53Z, cTrader.Automate 1.0.21).
@@ -77,3 +77,17 @@ None required for PASS. Optional:
 | Native | sl = d, tp = C − mid | `ExitStyle.Native` | yes |
 | Flat | hold → 20:00 UTC | StrategyFlatHourUtc 20 (+ force flat 20:55) | yes |
 | Entry | close_sec + 1 s market | first tick after the 5m close, market | yes |
+
+---
+## Re-review (commits bcad00f, 19dea4c)
+Re-compiled at HEAD b2590b1 (includes csproj `UseSharedCompilation=false`, 8444ef4): `cd cbots/build && flock /tmp/cbot_build.lock dotnet build -nologo -v q -p:Bot=<Bot> -warnaserror` → **0 errors / 0 warnings** (2026-10-25 11:36Z). Preset keys == property names, defaults == preset == frozen values, every numeric parameter has Min/Max/Step (re-checked by script); 1 Robot class, UTC/AccessRights.None; no DateTime.Now/Random/TimeZoneInfo. The committed `.algo` was built from the current source (no source change since the `.algo` commit); note that `.algo` packaging is not byte-reproducible (two consecutive builds of identical source differ), so rebuild diffs are noise and were reverted.
+
+| Item | Status | Notes |
+|---|---|---|
+| 1 start-up line | done | `Print` with earliest m1/m5 bar and prior IBs (median needs 10); docs explain the no-history case (start ≥ 1 month earlier). |
+| 2 close guard | done, correct | the same once-a-minute `_closing` dictionary as AsianRangeBreakout, cleared on Closed. |
+| 3 redundant Register | unchanged | harmless (`ContainsKey`); it was optional. |
+| Extra: History daily loss | correct | same `RecomputeRealized` as AsianRangeBreakout (Label+Symbol, UTC day, at most once a minute plus on close/partial). |
+| DST / signal / exit | unchanged | diff touches only logging, close guard and daily loss; the DST helper is untouched and its earlier verification still applies. |
+
+**Final verdict: PASS** (0 blockers, 0 majors).

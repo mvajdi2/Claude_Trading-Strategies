@@ -1,4 +1,4 @@
-# VClimaxSweepReversal — PASS
+# VClimaxSweepReversal — PASS (re-review 2026-10-25; initial verdict PASS)
 
 Compile: 0 errors / 0 warnings
 `cd cbots/build && flock /tmp/cbot_build.lock dotnet build -nologo -v q -p:Bot=VClimaxSweepReversal -warnaserror` (2026-10-25T11:17:49Z, cTrader.Automate 1.0.21).
@@ -100,3 +100,20 @@ None required for PASS. Optional:
 - Python checks the ratchet from the second after TP1.
 
 All three are documented under "Things deliberately not changed".
+
+---
+## Re-review (commits 1fcb0d0, 2b92bf6, b2590b1)
+Re-compiled at HEAD b2590b1 (includes csproj `UseSharedCompilation=false`, 8444ef4): `cd cbots/build && flock /tmp/cbot_build.lock dotnet build -nologo -v q -p:Bot=<Bot> -warnaserror` → **0 errors / 0 warnings** (2026-10-25 11:36Z). Preset keys == property names, defaults == preset == frozen values, every numeric parameter has Min/Max/Step (re-checked by script); 1 Robot class, UTC/AccessRights.None; no DateTime.Now/Random/TimeZoneInfo. The committed `.algo` was built from the current source (no source change since the `.algo` commit); note that `.algo` packaging is not byte-reproducible (two consecutive builds of identical source differ), so rebuild diffs are noise and were reverted.
+
+| Item | Status | Notes |
+|---|---|---|
+| Opt. 1 daily-loss counts TP1 partial | done, correct | `RealisedToday()` (VClimaxSweepReversal.cs:664) — same implementation as EmaPullbackAdx: History deals filtered by Label AND SymbolName, `ClosingTime >= _day` (UTC), newest-first with early break (cheap per tick), + unrealised. |
+| Opt. 2 docs B1 wording | done | "WR is unchanged. PF changes slightly … 1/scale instead of 1/max(scale, 5)". |
+| Opt. 2 docs other changes | done | new "Other small behaviour changes" (broker-min clamp, max-hold retry, MaxLots caps LegacyScale, 3% guard vs LegacyScale, BE/trailing Arch 2 only); parameter table marks BE/trailing "Arch 2 only". |
+| Extra: reference preset | correct | `VClimaxSweepReversal_XAUUSD_reference.cbotset`: 53 keys == property names; differs from the standard preset only in SizingBasis=LegacyScale, MaxLots=50, MaxDailyLossPercent=0; all 25 original preset values reproduced (OrderLabel→Label). Every other extra (MaxTradesPerDay 0, cooldown-after-close 0, latency 0, force flat off, BE/trail off) is neutral, so it reproduces the original logic except fixes B2/B6/B8. |
+| Extra: scale in comment | done, correct | `TradeComment|s=<F3 invariant>` ≤ 100 chars; parse as EmaPullbackAdx (tested, culture-invariant, robust); fallback to |TP−entry|/TP-mult when missing. Stage detection on adoption unchanged. |
+| Signal/exit logic | unchanged | diff touches only comment, adoption and daily-loss code. |
+
+New findings (MINOR): same as EmaPullbackAdx #1 (`Infinity` accepted by the parser) and #2 (early-break ordering assumption).
+
+**Final verdict: PASS** (0 blockers, 0 majors).
