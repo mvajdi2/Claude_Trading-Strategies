@@ -222,14 +222,24 @@ namespace cAlgo.Robots
 
             Positions.Closed += OnPositionClosed;
 
-            // adopt positions left open by a previous run (unit recovered from the stop distance)
+            // adopt positions left open by a previous run: unit from the order-comment tag "|u=",
+            // falling back to the stop distance / SlMult only when the tag is missing
             foreach (var p in Positions.FindAll(Label, SymbolName))
             {
-                double unit = p.StopLoss.HasValue && SlMult > 0 ? Math.Abs(p.EntryPrice - p.StopLoss.Value) / SlMult : 0.0;
                 int sd = p.TradeType == TradeType.Buy ? 1 : -1;
                 bool beDone = p.StopLoss.HasValue && (p.StopLoss.Value - p.EntryPrice) * sd >= 0;   // stop at/after entry: TP1 already taken
-                if (unit > 0 && !beDone) _state[p.Id] = new PosState { Unit = unit, Best = p.EntryPrice };
-                else if (beDone) Print("Adopted position {0} is past TP1 (stop at break-even); its broker SL/TP stay in force, time exit still applies.", p.Id);
+                double unit = ParseCommentValue(p.Comment);
+                bool fromTag = !double.IsNaN(unit);
+                if (!fromTag)
+                    unit = p.StopLoss.HasValue && SlMult > 0 && !beDone ? Math.Abs(p.EntryPrice - p.StopLoss.Value) / SlMult : 0.0;
+                if (unit > 0)
+                {
+                    _state[p.Id] = new PosState { Unit = unit, Best = sd == 1 ? Symbol.Bid : Symbol.Ask, Tp1Done = beDone,
+                                                  TrailOn = TrailingStopMult > 0 && (beDone || !(Tp1Mult > 0)) };
+                    Print("Adopted position {0}: unit={1:F3} ({2}), TP1 {3}.", p.Id, unit, fromTag ? "comment tag" : "stop-distance fallback", beDone ? "done" : "pending");
+                }
+                else
+                    Print("Adopted position {0}: unit unknown (no tag, stop at break-even); broker SL/TP stay in force, time exit still applies.", p.Id);
             }
 
             CatchUpM15();
@@ -446,7 +456,7 @@ namespace cAlgo.Robots
 
             double slPips = Math.Round(slDist / Symbol.PipSize, 1);
             double? tpPips = tpDist > 0 ? Math.Round(tpDist / Symbol.PipSize, 1) : (double?)null;
-            var res = ExecuteMarketOrder(side, SymbolName, units, Label, slPips, tpPips, TradeComment);
+            var res = ExecuteMarketOrder(side, SymbolName, units, Label, slPips, tpPips, BuildComment(unit));
             if (!res.IsSuccessful || res.Position == null)
             {
                 Print("ORDER FAILED {0} {1} units: {2}", side, units, res.Error);
@@ -649,6 +659,29 @@ namespace cAlgo.Robots
                 case DayOfWeek.Friday: return TradeFriday;
                 default: return false;
             }
+        }
+
+        // ---- unit persistence in the order comment: "<TradeComment>|u=<value>" (label/symbol untouched)
+        private const int MaxCommentLength = 100;          // conservative cTrader/broker comment limit
+        private const string UnitTag = "|u=";
+
+        private string BuildComment(double value)
+        {
+            string tag = UnitTag + value.ToString("F3", System.Globalization.CultureInfo.InvariantCulture);
+            string baseText = TradeComment ?? "";
+            if (baseText.Length + tag.Length > MaxCommentLength) baseText = baseText.Substring(0, Math.Max(0, MaxCommentLength - tag.Length));
+            return baseText + tag;
+        }
+
+        /// <summary>Value stored by BuildComment, or NaN when the tag is missing or unreadable.</summary>
+        private static double ParseCommentValue(string comment)
+        {
+            if (string.IsNullOrEmpty(comment)) return double.NaN;
+            int k = comment.LastIndexOf(UnitTag, StringComparison.Ordinal);
+            if (k < 0) return double.NaN;
+            string v = comment.Substring(k + UnitTag.Length);
+            double x;
+            return double.TryParse(v, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out x) && x > 0 ? x : double.NaN;
         }
 
         private void Log(string fmt, params object[] args)

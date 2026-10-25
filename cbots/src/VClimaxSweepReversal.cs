@@ -243,12 +243,17 @@ namespace cAlgo.Robots
         {
             Positions.Closed += OnPositionClosed;
 
-            // adopt positions left by a previous run: scale recovered from the (never modified) take-profit
+            // adopt positions left by a previous run: scale from the order-comment tag "|s=", falling back to
+            // the (never modified) take-profit / current TP multiple only when the tag is missing
             foreach (var p in Positions.FindAll(Label, SymbolName))
             {
-                double tpM = UseCushionRatchetRunner ? Tp2Mult : Tp1Mult;
-                if (!p.TakeProfit.HasValue || tpM <= 0) continue;
-                double scale = Math.Abs(p.TakeProfit.Value - p.EntryPrice) / tpM;
+                double scale = ParseCommentValue(p.Comment);
+                if (double.IsNaN(scale))
+                {
+                    double tpM = UseCushionRatchetRunner ? Tp2Mult : Tp1Mult;
+                    if (!p.TakeProfit.HasValue || tpM <= 0) continue;
+                    scale = Math.Abs(p.TakeProfit.Value - p.EntryPrice) / tpM;
+                }
                 int sd = p.TradeType == TradeType.Buy ? 1 : -1;
                 var st = new PosState
                 {
@@ -456,7 +461,7 @@ namespace cAlgo.Robots
             double slPips = Math.Round(slDist / Symbol.PipSize, 1);
             double tpPips = Math.Round(finalTpDist / Symbol.PipSize, 1);
 
-            var result = ExecuteMarketOrder(side, SymbolName, units, Label, slPips, tpPips, TradeComment);
+            var result = ExecuteMarketOrder(side, SymbolName, units, Label, slPips, tpPips, BuildComment(scale));
             if (!result.IsSuccessful || result.Position == null)
             {
                 Print("[VCSR] ORDER FAILED {0} {1} units: {2}", side, units, result.Error);
@@ -679,6 +684,29 @@ namespace cAlgo.Robots
                 case DayOfWeek.Friday: return TradeFriday;
                 default: return false;
             }
+        }
+
+        // ---- unit persistence in the order comment: "<TradeComment>|s=<value>" (label/symbol untouched)
+        private const int MaxCommentLength = 100;          // conservative cTrader/broker comment limit
+        private const string ScaleTag = "|s=";
+
+        private string BuildComment(double value)
+        {
+            string tag = ScaleTag + value.ToString("F3", System.Globalization.CultureInfo.InvariantCulture);
+            string baseText = TradeComment ?? "";
+            if (baseText.Length + tag.Length > MaxCommentLength) baseText = baseText.Substring(0, Math.Max(0, MaxCommentLength - tag.Length));
+            return baseText + tag;
+        }
+
+        /// <summary>Value stored by BuildComment, or NaN when the tag is missing or unreadable.</summary>
+        private static double ParseCommentValue(string comment)
+        {
+            if (string.IsNullOrEmpty(comment)) return double.NaN;
+            int k = comment.LastIndexOf(ScaleTag, StringComparison.Ordinal);
+            if (k < 0) return double.NaN;
+            string v = comment.Substring(k + ScaleTag.Length);
+            double x;
+            return double.TryParse(v, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out x) && x > 0 ? x : double.NaN;
         }
 
         private void Log(string fmt, params object[] args)
