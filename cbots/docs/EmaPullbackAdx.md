@@ -50,7 +50,7 @@ Defaults equal the frozen values. Every numeric parameter has Min/Max/Step for t
 | Group | Parameter | Default | Optimisation range (min–max / step) | Meaning |
 |---|---|---|---|---|
 | Identity | `Label` | EmaPullbackAdx | – | Positions are filtered by label + symbol |
-| Identity | `TradeComment` | EmaPullbackAdx | – | Order comment |
+| Identity | `TradeComment` | EmaPullbackAdx | – | Order comment prefix. The bot appends `|u=<unit>` for exact restart recovery |
 | Risk | `RiskMode` | PercentOfEquity | enum: PercentOfEquity / FixedLots / FixedCash | Sizing mode |
 | Risk | `RiskPercent` | 0.5 | 0.1–3.0 / 0.1 | % of equity lost if the stop is hit |
 | Risk | `FixedLots` | 0.10 | 0.01–10 / 0.01 | Lots in FixedLots mode |
@@ -138,7 +138,11 @@ Defaults equal the frozen values. Every numeric parameter has Min/Max/Step for t
    - Saturday and Sunday are never traded. The signal window is 07–19 UTC, so this changes nothing.
 7. **DST.** The strategy uses only UTC times, so no New York or London conversion is needed.
 8. **Broker minimum distance.** If the stop or target distance is smaller than the broker's minimum stop/TP distance (`Symbol.MinStopLossDistance` / `MinTakeProfitDistance`), the bot raises it to that minimum. On XAUUSD the minimum is normally 0, so this has no effect.
-9. **Restart.** If the bot restarts with a position open, it recovers `unit` from the stop distance. A position whose stop is already at break-even keeps its broker SL/TP, and the time exit still applies to it.
+9. **Restart.** At entry, the unit is stored in the order comment: `TradeComment|u=<unit, 3 decimals>`.
+   - The comment is kept within 100 characters; `TradeComment` is truncated if needed.
+   - The label is not touched, so label + symbol filtering is unchanged.
+   - On restart, open positions with this label are adopted using the tagged unit, which is exact. If the stop is already at or beyond entry, the bot treats TP1 as done.
+   - Only if the tag is missing (for example, a position opened by an older build) does it fall back to |entry − SL| / SlMult. That fallback overstates the unit when the stop was raised to the $0.15 floor or the broker minimum, and cannot recover a position already at break-even.
 
 ## Recommended cTrader backtest settings
 - Symbol **XAUUSD**, chart period **m1**. The bot reads m15 and H1 internally.

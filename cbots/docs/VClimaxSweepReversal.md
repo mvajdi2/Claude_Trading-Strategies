@@ -69,7 +69,7 @@ Defaults equal the original preset. The original optimiser ranges are kept, and 
 | Group | Parameter | Default | Optimisation range (min–max / step) | Meaning |
 |---|---|---|---|---|
 | Identity | `Label` | VCSR_XAUUSD-CH | – | was `OrderLabel`; label + symbol filter |
-| Identity | `TradeComment` | Sub5s_VClimaxSweep | – | was hard-coded |
+| Identity | `TradeComment` | Sub5s_VClimaxSweep | – | was hard-coded. The bot appends `|s=<scale>`, so the comment reads e.g. `Sub5s_VClimaxSweep|s=6.123` |
 | Risk | `RiskMode` | PercentOfEquity | enum: PercentOfEquity / FixedLots / FixedCash | new |
 | Risk | `RiskPercent` | 0.5 | 0.1–5.0 / 0.1 | % of equity at risk |
 | Risk | `SizingBasis` | StopDistance | enum: StopDistance / LegacyScale | new; see bug B1 |
@@ -128,7 +128,7 @@ Defaults equal the original preset. The original optimiser ranges are kept, and 
 | B4 | `Positions.Closed` was never unsubscribed. | Unsubscribed in `OnStop`. | None. |
 | B5 | Cushion stop used `Math.Abs(CushionSlMult)`. A positive value (a cushion in profit) would have been placed on the loss side. | Signed formula `entry + side × CushionSlMult × scale`. | Identical for the allowed range −1.5…0. |
 | B6 | `ModifyPosition` and `ClosePosition` results were not checked. A stop modify that fails, for example because price has already crossed the new level, silently left the wide 5.5 × s900 stop in place. | Results are checked and logged. The stop only moves in the favourable direction. If the new level has already been crossed, the remainder is closed at market, as the Python simulator does when the stop is hit. | Only matters in fast markets. |
-| B7 | Exit state was a single set of fields: one position only, and the state was lost on restart. A restarted bot never enforced `MaxHoldSeconds` or the TP1/ratchet logic on a position already open. | State is kept per `Position.Id` in a dictionary and removed on `Positions.Closed`. On start, open positions with this label are adopted: scale is recovered from the take-profit (never modified), and the TP1/ratchet stage from the stop location. | None in backtests. |
+| B7 | Exit state was a single set of fields: one position only, and the state was lost on restart. A restarted bot never enforced `MaxHoldSeconds` or the TP1/ratchet logic on a position already open. | State is kept per `Position.Id` in a dictionary and removed on `Positions.Closed`. At entry, the scale is stored in the order comment (`TradeComment|s=<scale>`, at most 100 characters; the label is unchanged). On start, open positions with this label are adopted using the tagged scale, which is exact even if `Tp2Mult` changed or the TP was raised to the broker minimum. Only when the tag is missing does the bot fall back to recovering scale from the take-profit (never modified) and the current TP multiple. The TP1/ratchet stage is read from the stop location. | None in backtests. |
 | B8 | The spread filter used the closing spread of the **signal** second, not the spread at the moment of entry. | Both are checked against `MaxSpreadUsd`. | Can skip a few entries whose spread widened in the next tick. |
 | B9 | When TP1's 65% partial could not be split (volume too small), the stop still moved to the cushion with no message. | Behaviour kept (the cushion stop still applies) but logged, so it is visible. | None. |
 
