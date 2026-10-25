@@ -2,7 +2,7 @@
 
 - **Source:** `cbots/src/VClimaxSweepReversal.cs`
 - **Package:** `cbots/algo/VClimaxSweepReversal.algo`
-- **Preset:** `cbots/presets/VClimaxSweepReversal_XAUUSD.cbotset`
+- **Presets:** `cbots/presets/VClimaxSweepReversal_XAUUSD.cbotset` (standard, bug-fixed sizing) and `cbots/presets/VClimaxSweepReversal_XAUUSD_reference.cbotset` (reproduces the original PF 3.23 run)
 - **Upgrade of:** `cbots/reference/MV_Gold_Sub5s_VClimaxReversal_cBot.cs` and its preset `MV_Gold_Sub5s_VClimaxReversal_XAUUSD.cbotset`. Both are Antigravity originals and are left untouched.
 - **Signal reference:** `cbots/reference/gold_sub5s_reversal_engine.py` (`detect_v_climax_signals`, `simulate_1s_trades` arch1/arch2).
 - **Original cTrader result:** `cbots/reference/ctrader_cli_12m_ticks_summary.json`.
@@ -77,7 +77,7 @@ Defaults equal the original preset. The original optimiser ranges are kept, and 
 | Risk | `FixedCashRisk` | 500 | 10–10000 / 10 | new |
 | Risk | `MaxLots` | 20 | 0.01–50 / 0.01 | new (Python `MAX_LOTS` = 20) |
 | Protection | `MaxSpreadUsd` | 0.35 | 0.10–1.50 / 0.05 | original; now also checked at entry |
-| Protection | `MaxDailyLossPercent` | 3.0 | 0–10 / 0.5 | new (0 = off) |
+| Protection | `MaxDailyLossPercent` | 3.0 | 0–10 / 0.5 | new (0 = off). On by default; set 0 to reproduce the reference run (see below) |
 | Protection | `CloseAllOnDailyLoss` | false | bool | new |
 | Protection | `MaxTradesPerDay` | 0 | 0–20 / 1 | new (0 = off, as in the original) |
 | Protection | `MaxOpenPositions` | 1 | 1–5 / 1 | new; 1 matches the original's hard-coded rule |
@@ -109,9 +109,9 @@ Defaults equal the original preset. The original optimiser ranges are kept, and 
 | Exit | `CushionSlMult` | −1.00 | −1.50–0.00 / 0.1 | original |
 | Exit | `RatchetTriggerMult` | 1.10 | 0.8–2.5 / 0.1 | original |
 | Exit | `RatchetLockMult` | 0.50 | 0.1–1.5 / 0.1 | original |
-| Exit | `MoveToBreakEven` | false | bool | new: after TP1, stop to entry + offset if tighter |
+| Exit | `MoveToBreakEven` | false | bool | new: after TP1, stop to entry + offset if tighter. **Arch 2 only** (does nothing when `UseCushionRatchetRunner = false`) |
 | Exit | `BreakEvenOffsetUsd` | 0.0 | 0–2.0 / 0.1 | new |
-| Exit | `TrailingStopMult` | 0.0 | 0–3.0 / 0.25 | new: own trailing stop of N × scale after TP1 (0 = off) |
+| Exit | `TrailingStopMult` | 0.0 | 0–3.0 / 0.25 | new: own trailing stop of N × scale after TP1 (0 = off). **Arch 2 only** |
 | Exit | `MaxHoldSeconds` | 3600 | 300–14400 / 300 | original (standard MaxHold, kept in seconds) |
 | Diagnostics | `VerboseLog` | false | bool | new; the original printed every entry unconditionally |
 | Diagnostics | `DrawLevels` | true | bool | new: swept level, entry, SL, TP1 and TP2 lines; no-op in optimisation |
@@ -122,7 +122,7 @@ Defaults equal the original preset. The original optimiser ranges are kept, and 
 
 | # | Bug in the original | Fix | Effect with default settings |
 |---|---|---|---|
-| B1 | **Sizing used the wrong distance.** Risk cash was divided by `max(scale, 5) / PipSize × PipValue`, i.e. by about **1 × s900**, while the stop sits at **5.5 × s900**. A stop-out therefore lost about 5.5 × `RiskPercent` (≈ 2.75% at 0.5%). The label "Risk Per Trade (%)" was wrong. | Default `SizingBasis = StopDistance`: risk cash / (stop distance × value of a $1 move per unit). `LegacyScale` reproduces the original formula. | Position size is about 1/5.5 of the original at the same RiskPercent. PF and WR are unchanged; absolute P&L and DD shrink about 5.5×. To compare with the reference equity curve, use `SizingBasis = LegacyScale` (or RiskPercent ≈ 2.75). |
+| B1 | **Sizing used the wrong distance.** Risk cash was divided by `max(scale, 5) / PipSize × PipValue`, i.e. by about **1 × s900**, while the stop sits at **5.5 × s900**. A stop-out therefore lost about 5.5 × `RiskPercent` (≈ 2.75% at 0.5%). The label "Risk Per Trade (%)" was wrong. | Default `SizingBasis = StopDistance`: risk cash / (stop distance × value of a $1 move per unit). `LegacyScale` reproduces the original formula. | Position size is about 1/5.5 of the original at the same RiskPercent. WR is unchanged. PF changes slightly, because relative trade size now follows 1/scale instead of 1/max(scale, 5): trades with s900 between 4.5 and 5 get up to about 10% different relative weight. Absolute P&L and DD shrink about 5.5×. To compare with the reference equity curve, use `SizingBasis = LegacyScale` (or RiskPercent ≈ 2.75). |
 | B2 | Volume below the broker minimum was **raised** to `VolumeInUnitsMin`, which over-risks. | Skip the trade (both sizing bases). | None at normal equity. |
 | B3 | Ring buffer was a `List` using `RemoveAt(0)`: an O(14,416) memory shift every second, about 16M times in a 12-month tick backtest. | True circular array with O(1) push. | Same values, much faster backtests and optimisation. |
 | B4 | `Positions.Closed` was never unsubscribed. | Unsubscribed in `OnStop`. | None. |
@@ -134,13 +134,36 @@ Defaults equal the original preset. The original optimiser ranges are kept, and 
 
 ### Standard features added
 - `RiskMode` (PercentOfEquity / FixedLots / FixedCash) and `MaxLots`.
-- Daily loss guard: realised P&L of this label's positions + unrealised P&L, measured against the day's start equity on the UTC day.
+- Daily loss guard: this label's realised P&L since the UTC day start (read from `History`, so TP1 partial closes count) + unrealised P&L, measured against the day's start equity.
 - `MaxTradesPerDay`, `MaxOpenPositions`, cooldown after close, weekday toggles.
 - Optional force flat (off by default).
 - Optional break-even and trailing stop after TP1 (off by default).
 - `VerboseLog`, `DrawLevels`.
 - Optimiser Step on every numeric parameter.
 - Label + symbol filtering throughout, including the Closed handler, and event unsubscription.
+
+### Other small behaviour changes
+- **Broker minimum distance.** The stop and TP are raised to the broker's minimum stop/TP distance when smaller. XAUUSD's minimum is normally 0, so this has no effect.
+- **Max-hold close is retried.** If the max-hold close fails, it is retried on every tick. The original tried once and then forgot the position.
+- **`MaxLots` caps every sizing basis.** The default of 20 also caps `LegacyScale` volume. The original was capped only by `VolumeInUnitsMax`.
+- **The daily-loss guard (3%) is on by default.** With `SizingBasis = LegacyScale`, one stop-out is about 2.75% of equity, so the guard can block further entries that day after one or two losses. The original had no guard.
+- **Break-even and trailing are Arch 2 only.** The optional `MoveToBreakEven` and `TrailingStopMult` act only in Arch 2.
+
+### Reproducing the reference run (PF 3.23)
+Load `cbots/presets/VClimaxSweepReversal_XAUUSD_reference.cbotset`. It differs from the standard preset in these settings:
+
+| Setting | Value |
+|---|---|
+| `SizingBasis` | LegacyScale |
+| `MaxDailyLossPercent` | 0 |
+| `MaxLots` | 50 (high enough not to bind; the reference run never exceeded 0.75 lots) |
+| `MaxTradesPerDay` | 0 |
+| `CooldownMinutes` | 0 |
+| `MaxSignalLatencySec` | 0 |
+| `ForceFlatEnabled` | false |
+| Break-even and trailing | off |
+
+The remaining differences from the original are the bug fixes B2, B6 and B8, plus the broker-minimum and max-hold-retry changes above. All of them are inactive in normal conditions.
 
 ### Things deliberately **not** changed (behaviour as the PF 3.23 run)
 - **Population std.** Python's pandas `rolling().std()` uses ddof = 1. The difference is about 0.06% at n = 900.
@@ -192,4 +215,4 @@ Defaults equal the original preset. The original optimiser ranges are kept, and 
   - Also Oct 2025 → Sep 2026, to compare with PF 3.23 / WR 92%.
 - Commission **$7 per lot round trip**. Spread from the broker.
 - Starting balance 100,000. Load `VClimaxSweepReversal_XAUUSD.cbotset`.
-- To reproduce the original sizing (and so its equity curve and DD, apart from fill differences), set `SizingBasis = LegacyScale`.
+- To reproduce the original run (sizing, equity curve and DD, apart from fill differences), load `VClimaxSweepReversal_XAUUSD_reference.cbotset` (LegacyScale, daily-loss guard off).

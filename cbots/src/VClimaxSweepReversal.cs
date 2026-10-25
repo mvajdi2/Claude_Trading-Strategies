@@ -231,7 +231,7 @@ namespace cAlgo.Robots
 
         // day / guard state
         private DateTime _day = DateTime.MinValue;
-        private double _dayStartEquity, _realisedToday;
+        private double _dayStartEquity;
         private int _tradesToday;
         private bool _dailyLossHit;
         private DateTime _lastCloseTime = DateTime.MinValue;
@@ -594,7 +594,6 @@ namespace cAlgo.Robots
             if (p.Label != Label || p.SymbolName != SymbolName) return;
             _state.Remove(p.Id);
             _closing.Remove(p.Id);
-            _realisedToday += p.NetProfit;
             _lastCloseTime = Server.Time;
             if (CanDraw)
                 foreach (var s in new[] { "_lvl", "_e", "_sl", "_tp", "_tp1" }) Chart.RemoveObject("VCSR_" + p.Id + s);
@@ -638,7 +637,7 @@ namespace cAlgo.Robots
             if (now.Date == _day) return;
             _day = now.Date;
             _dayStartEquity = Account.Equity;
-            _realisedToday = 0; _tradesToday = 0; _dailyLossHit = false;
+            _tradesToday = 0; _dailyLossHit = false;
         }
 
         private void CheckDailyLoss()
@@ -646,13 +645,27 @@ namespace cAlgo.Robots
             if (MaxDailyLossPercent <= 0 || _dailyLossHit || _dayStartEquity <= 0) return;
             double unreal = 0;
             foreach (var p in Positions.FindAll(Label, SymbolName)) unreal += p.NetProfit;
-            double loss = -(_realisedToday + unreal);
+            double loss = -(RealisedToday() + unreal);
             if (loss > _dayStartEquity * MaxDailyLossPercent / 100.0)
             {
                 _dailyLossHit = true;
                 Print("[VCSR] daily loss limit hit ({0:F2} > {1}% of {2:F2}); no new entries today.", loss, MaxDailyLossPercent, _dayStartEquity);
                 if (CloseAllOnDailyLoss) FlattenAll("daily loss limit");
             }
+        }
+
+        /// <summary>Realised net P&amp;L of this label+symbol since the UTC day start, from History
+        /// (includes partial closes such as TP1, which do not raise Positions.Closed).</summary>
+        private double RealisedToday()
+        {
+            double sum = 0;
+            for (int i = History.Count - 1; i >= 0; i--)
+            {
+                var t = History[i];
+                if (t.ClosingTime < _day) break;               // History is ordered by closing time
+                if (t.Label == Label && t.SymbolName == SymbolName) sum += t.NetProfit;
+            }
+            return sum;
         }
 
         private bool DayAllowed(DayOfWeek d)

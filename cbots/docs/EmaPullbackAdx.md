@@ -57,7 +57,7 @@ Defaults equal the frozen values. Every numeric parameter has Min/Max/Step for t
 | Risk | `FixedCashRisk` | 500 | 10–10000 / 10 | Account-currency risk in FixedCash mode |
 | Risk | `MaxLots` | 5.0 | 0.01–50 / 0.01 | Volume cap |
 | Protection | `MaxSpreadUsd` | 0.60 | 0.05–3.0 / 0.05 | Skip the entry if spread > this |
-| Protection | `MaxDailyLossPercent` | 3.0 | 0–10 / 0.5 | Block entries for the day once the loss exceeds this (0 = off) |
+| Protection | `MaxDailyLossPercent` | 3.0 | 0–10 / 0.5 | Block entries for the day once this label's realised P&L (from `History`, so the TP1 partial is included) plus unrealised P&L falls below −X% of the day's start equity (0 = off) |
 | Protection | `CloseAllOnDailyLoss` | false | bool | Also close open positions when the limit is hit |
 | Protection | `MaxTradesPerDay` | 2 | 0–10 / 1 | Executed entries per UTC day (0 = off) |
 | Protection | `MaxOpenPositions` | 1 | 1–5 / 1 | 1 = Python's one-position-at-a-time rule |
@@ -137,7 +137,8 @@ Defaults equal the frozen values. Every numeric parameter has Min/Max/Step for t
    - weekday toggles, cooldown and max hold (off).
    - Saturday and Sunday are never traded. The signal window is 07–19 UTC, so this changes nothing.
 7. **DST.** The strategy uses only UTC times, so no New York or London conversion is needed.
-8. **Restart.** If the bot restarts with a position open, it recovers `unit` from the stop distance. A position whose stop is already at break-even keeps its broker SL/TP, and the time exit still applies to it.
+8. **Broker minimum distance.** If the stop or target distance is smaller than the broker's minimum stop/TP distance (`Symbol.MinStopLossDistance` / `MinTakeProfitDistance`), the bot raises it to that minimum. On XAUUSD the minimum is normally 0, so this has no effect.
+9. **Restart.** If the bot restarts with a position open, it recovers `unit` from the stop distance. A position whose stop is already at break-even keeps its broker SL/TP, and the time exit still applies to it.
 
 ## Recommended cTrader backtest settings
 - Symbol **XAUUSD**, chart period **m1**. The bot reads m15 and H1 internally.
