@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Compile-check project: copy into <workdir>/build/ and put bots in <workdir>/src/. Builds src/<Bot>.cs against the official cTrader Automate API and writes algo/<Bot>.algo. -->
+  <PropertyGroup>
+    <TargetFramework>net6.0</TargetFramework>
+    <OutputType>Library</OutputType>
+    <Nullable>disable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <UseSharedCompilation>false</UseSharedCompilation>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <AssemblyName Condition="'$(Bot)' != ''">$(Bot)</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../src/$(Bot).cs" Condition="'$(Bot)' != ''" />
+    <Compile Include="../src/*.cs" Condition="'$(Bot)' == ''" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="cTrader.Automate" Version="1.0.21" />
+  </ItemGroup>
+  <!-- copy the cTrader .algo package (named after the parent folder by the SDK) to ../algo/<Bot>.algo -->
+  <Target Name="CopyAlgo" AfterTargets="_BundleAlgo" Condition="'$(Bot)' != ''">
+    <Copy SourceFiles="$(OutDir)$([System.IO.Path]::GetFileName($([System.IO.Path]::GetDirectoryName($(MSBuildProjectDirectory))))).algo"
+          DestinationFiles="$(MSBuildProjectDirectory)/../algo/$(Bot).algo" />
+  </Target>
+</Project>
