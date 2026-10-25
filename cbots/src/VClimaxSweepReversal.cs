@@ -664,10 +664,12 @@ namespace cAlgo.Robots
         private double RealisedToday()
         {
             double sum = 0;
+            int older = 0;   // stop after a run of older deals; tolerant of History not being strictly time-ordered
             for (int i = History.Count - 1; i >= 0; i--)
             {
                 var t = History[i];
-                if (t.ClosingTime < _day) break;               // History is ordered by closing time
+                if (t.ClosingTime < _day) { if (++older >= 50) break; continue; }
+                older = 0;
                 if (t.Label == Label && t.SymbolName == SymbolName) sum += t.NetProfit;
             }
             return sum;
@@ -706,7 +708,7 @@ namespace cAlgo.Robots
             if (k < 0) return double.NaN;
             string v = comment.Substring(k + ScaleTag.Length);
             double x;
-            return double.TryParse(v, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out x) && x > 0 ? x : double.NaN;
+            return double.TryParse(v, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out x) && x > 0 && !double.IsInfinity(x) ? x : double.NaN;
         }
 
         private void Log(string fmt, params object[] args)
