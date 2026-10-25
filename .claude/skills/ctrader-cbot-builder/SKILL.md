@@ -23,7 +23,8 @@ export PATH=/root/.dotnet:$PATH DOTNET_CLI_TELEMETRY_OPTOUT=1
 cd /home/user/xau_hf/cbots/build && flock /tmp/cbot_build.lock dotnet build -nologo -v q -p:Bot=<BotName>
 ```
 `CBotCheck.csproj` compiles `../src/<Bot>.cs` against the official `cTrader.Automate` NuGet API
-(the same cAlgo.API that cTrader uses). If .NET is missing, install it with
+(the same cAlgo.API that cTrader uses). A successful build also writes the importable cTrader
+package `cbots/algo/<BotName>.algo`. Commit the `.algo` alongside the source. If .NET is missing, install it with
 `curl -sSL https://dot.net/v1/dotnet-install.sh | bash -s -- --channel 8.0 --install-dir /root/.dotnet`.
 
 ## Standard features: every bot must include all of these

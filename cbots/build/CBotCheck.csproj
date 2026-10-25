@@ -7,6 +7,7 @@
     <LangVersion>latest</LangVersion>
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <AssemblyName Condition="'$(Bot)' != ''">$(Bot)</AssemblyName>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="../src/$(Bot).cs" Condition="'$(Bot)' != ''" />
@@ -15,4 +16,9 @@
   <ItemGroup>
     <PackageReference Include="cTrader.Automate" Version="1.0.21" />
   </ItemGroup>
+  <!-- copy the cTrader .algo package (named after the parent folder by the SDK) to ../algo/<Bot>.algo -->
+  <Target Name="CopyAlgo" AfterTargets="_BundleAlgo" Condition="'$(Bot)' != ''">
+    <Copy SourceFiles="$(OutDir)$([System.IO.Path]::GetFileName($([System.IO.Path]::GetDirectoryName($(MSBuildProjectDirectory))))).algo"
+          DestinationFiles="$(MSBuildProjectDirectory)/../algo/$(Bot).algo" />
+  </Target>
 </Project>
