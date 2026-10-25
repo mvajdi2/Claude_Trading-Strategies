@@ -120,10 +120,15 @@ The exit templates (`sl` 0.5–2.0, `tp` 0.5–3.0) map to `SlMult` and `TpMult`
     both are touched within one second.
 - **DST:** the bot codes the US rule (valid since 2007) for the IB date. Python uses pandas
   `America/New_York`. They agree for 2025–2026.
-- **Median warm-up:** the bot loads about 45 days of m1 history at start to have 20 earlier IBs. If
-  the broker returns less, the wide filter waits until 10 IBs exist, the same as Python's
-  `min_periods`.
-- **Daily-loss guard:** it counts this bot's label only. Python has no such guard. The 3% default
+- **Median warm-up:**
+  - The bot loads about 45 days of m1 history at start to have 20 earlier IBs.
+  - It always prints `started: earliest m1 bar …, earliest m5 bar …; prior IBs N (median needs
+    10)`.
+  - If the backtester serves no history before the start date, the wide filter waits until 10 IBs
+    exist, about 2 weeks, the same as Python's `min_periods`. Start the backtest at least 1 month
+    before the comparison period.
+- **Daily-loss guard:** it counts this bot's label only (realised P&L of today from `History`, so
+  partial closes are included, refreshed on each close and every minute, plus open P&L). Python has no such guard. The 3% default
   never triggers at 0.5% risk with one trade per day.
 - **Force-flat:** 20:55 UTC. It never binds, because the strategy is flat at 20:00.
 

@@ -197,6 +197,7 @@ namespace cAlgo.Robots
 
         private static readonly DateTime Epoch = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
         private readonly Dictionary<int, PosState> _state = new Dictionary<int, PosState>();
+        private readonly Dictionary<int, DateTime> _closing = new Dictionary<int, DateTime>();
         private Bars _b5;
         private DateTime _last5 = DateTime.MinValue;
         private bool _warm;
@@ -205,6 +206,7 @@ namespace cAlgo.Robots
         private DateTime _day = DateTime.MinValue;
         private double _dayStartEquity;
         private double _realizedToday;
+        private DateTime _realizedAt = DateTime.MinValue;
         private int _tradesToday;
         private bool _dailyLossHit, _flatDone;
         private DateTime _lastCloseTime = DateTime.MinValue;
@@ -329,14 +331,7 @@ namespace cAlgo.Robots
             bool ok = hourF >= SignalStartHourUtc && hourF < SignalEndHourUtc && !double.IsNaN(atr)
                       && !double.IsNaN(slope) && _nbar >= SlopeBars && sd > 0;
 
-            if (_canDraw && _warm)
-            {
-                string k = t.ToString("yyyyMMddHHmm");
-                DateTime t2 = t.AddMinutes(5);
-                Chart.DrawTrendLine("avw_vw_" + k, t, vw, t2, vw, Color.Gold);
-                Chart.DrawTrendLine("avw_up_" + k, t, vw + StopSigmaMult * sd, t2, vw + StopSigmaMult * sd, Color.Gray);
-                Chart.DrawTrendLine("avw_dn_" + k, t, vw - StopSigmaMult * sd, t2, vw - StopSigmaMult * sd, Color.Gray);
-            }
+            if (_canDraw && _warm) DrawSession(t, vw, sd);
 
             int side = 0;
             double d = double.NaN, tpNative = 0;
@@ -396,6 +391,27 @@ namespace cAlgo.Robots
             OpenMarket(side > 0 ? TradeType.Buy : TradeType.Sell, slD, tpD, d);
         }
 
+        // DrawLevels: only the current session is drawn (3 segments per bar); when a new session starts,
+        // the previous session's objects are removed, so at most ~3 x 288 objects exist at any time.
+        private readonly List<string> _drawn = new List<string>();
+        private long _drawGrp = long.MinValue;
+
+        private void DrawSession(DateTime t, double vw, double sd)
+        {
+            if (_drawGrp != _grp)
+            {
+                foreach (var n in _drawn) Chart.RemoveObject(n);
+                _drawn.Clear();
+                _drawGrp = _grp;
+            }
+            string k = t.ToString("yyyyMMddHHmm");
+            DateTime t2 = t.AddMinutes(5);
+            Chart.DrawTrendLine("avw_vw_" + k, t, vw, t2, vw, Color.Gold);
+            Chart.DrawTrendLine("avw_up_" + k, t, vw + StopSigmaMult * sd, t2, vw + StopSigmaMult * sd, Color.Gray);
+            Chart.DrawTrendLine("avw_dn_" + k, t, vw - StopSigmaMult * sd, t2, vw - StopSigmaMult * sd, Color.Gray);
+            _drawn.Add("avw_vw_" + k); _drawn.Add("avw_up_" + k); _drawn.Add("avw_dn_" + k);
+        }
+
         private void OpenMarket(TradeType tt, double sl, double tp, double unit)
         {
             string why;
@@ -429,6 +445,7 @@ namespace cAlgo.Robots
             }
             if (!_dailyLossHit && MaxDailyLossPercent > 0 && _dayStartEquity > 0)
             {
+                if (now >= _realizedAt.AddMinutes(1)) RecomputeRealized();
                 double pnl = _realizedToday;
                 foreach (var p in mine) pnl += p.NetProfit;
                 if (pnl <= -MaxDailyLossPercent / 100.0 * _dayStartEquity)
@@ -455,6 +472,7 @@ namespace cAlgo.Robots
             var p = e.Position;
             if (p == null || p.Label != Label || p.SymbolName != SymbolName) return;
             _state.Remove(p.Id);
+            _closing.Remove(p.Id);
             _lastCloseTime = Server.Time;
             RecomputeRealized();
             Log(string.Format("closed {0} net {1:F2} ({2})", p.Id, p.NetProfit, e.Reason));
@@ -478,8 +496,11 @@ namespace cAlgo.Robots
             _flatDone = false;
         }
 
+        // today's realised P&L of this label + symbol from History; partial closes appear there as
+        // separate deals (Positions.Closed does not fire for them)
         private void RecomputeRealized()
         {
+            _realizedAt = Server.Time;
             double s = 0;
             foreach (var h in History.FindAll(Label, SymbolName))
                 if (h.ClosingTime >= _day) s += h.NetProfit;
@@ -615,10 +636,14 @@ namespace cAlgo.Robots
             if (!r.IsSuccessful) Print("modify SL failed: " + r.Error);
         }
 
+        // "closing" guard: one close attempt per position per minute, so a rejected close cannot spam every tick
         private void ClosePos(Position p, string why)
         {
+            DateTime last;
+            if (_closing.TryGetValue(p.Id, out last) && Server.Time < last.AddMinutes(1)) return;
+            _closing[p.Id] = Server.Time;
             var r = ClosePosition(p);
-            if (!r.IsSuccessful) Print("close failed (" + why + "): " + r.Error);
+            if (!r.IsSuccessful) Print("close failed (" + why + "): " + r.Error + " - retry in 1 min");
             else Log("closed position " + p.Id + ": " + why);
         }
 

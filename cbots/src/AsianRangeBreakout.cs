@@ -214,6 +214,7 @@ namespace cAlgo.Robots
         }
 
         private readonly Dictionary<int, PosState> _state = new Dictionary<int, PosState>();
+        private readonly Dictionary<int, DateTime> _closing = new Dictionary<int, DateTime>();
         private Bars _b1, _b5;
         private DateTime _last1 = DateTime.MinValue, _last5 = DateTime.MinValue;
         private bool _warm;
@@ -223,10 +224,10 @@ namespace cAlgo.Robots
         private DateTime _day = DateTime.MinValue;
         private double _dayStartEquity;
         private double _realizedToday;
+        private DateTime _realizedAt = DateTime.MinValue;
         private int _tradesToday;
         private bool _dailyLossHit, _flatDone;
         private DateTime _lastCloseTime = DateTime.MinValue;
-        private double _nextUnit = double.NaN;
 
         // daily 23:00-21:00 bars (for ATR)
         private DateTime _dTd = DateTime.MinValue;
@@ -267,7 +268,9 @@ namespace cAlgo.Robots
             Positions.Opened += OnPositionOpened;
             Positions.Closed += OnPositionClosed;
             PendingOrders.Filled += OnPendingFilled;
-            Log("started: daily rows " + _dHigh.Count + ", rv days " + _rv.Count);
+            Print(string.Format("started: earliest m1 bar {0:yyyy-MM-dd HH:mm}, earliest m5 bar {1:yyyy-MM-dd HH:mm}; daily rows {2} (ATR needs {3}), RV days {4} (vol state needs {5})",
+                _b1.Count > 0 ? _b1.OpenTimes[0] : Server.Time, _b5.Count > 0 ? _b5.OpenTimes[0] : Server.Time,
+                _dHigh.Count, AtrPeriodDays + 1, _rv.Count, VolMinHistoryDays));
         }
 
         protected override void OnStop()
@@ -532,6 +535,7 @@ namespace cAlgo.Robots
 
             if (!_dailyLossHit && MaxDailyLossPercent > 0 && _dayStartEquity > 0)
             {
+                if (now >= _realizedAt.AddMinutes(1)) RecomputeRealized();
                 double pnl = _realizedToday;
                 foreach (var p in mine) pnl += p.NetProfit;
                 if (pnl <= -MaxDailyLossPercent / 100.0 * _dayStartEquity)
@@ -558,11 +562,21 @@ namespace cAlgo.Robots
             if (p == null || p.Label != Label || p.SymbolName != SymbolName) return;
             if (_state.ContainsKey(p.Id)) return;
             CancelMyPending("OCO sibling");
-            double unit = !double.IsNaN(_nextUnit) ? _nextUnit : _pendUnit;
+            // OCO double fill: the sibling filled before the cancel reached the server. Python never holds
+            // two positions (one trade per day), so the second leg is closed at once and not registered.
+            bool otherOpen = Positions.FindAll(Label, SymbolName).Any(q => q.Id != p.Id);
+            if (otherOpen || _tradesToday >= MaxTradesPerDay)
+            {
+                var rc = ClosePosition(p);
+                Print("OCO double fill: closed second position " + p.Id + (rc.IsSuccessful ? "" : " - close failed: " + rc.Error));
+                CancelMyPending("OCO double fill");
+                return;
+            }
+            double unit = _pendUnit;
             if (double.IsNaN(unit) || unit <= 0) unit = p.StopLoss.HasValue ? Math.Abs(p.EntryPrice - p.StopLoss.Value) : 1.0;
             Register(p, unit);
             // stop and target measured from the actual fill (Python: distances from the entry fill)
-            if (!double.IsNaN(_pendUnit) && double.IsNaN(_nextUnit))
+            if (!double.IsNaN(_pendUnit))
             {
                 int side = p.TradeType == TradeType.Buy ? 1 : -1;
                 double sl = Math.Round(p.EntryPrice - side * _pendSl, Symbol.Digits);
@@ -584,6 +598,7 @@ namespace cAlgo.Robots
             var p = e.Position;
             if (p == null || p.Label != Label || p.SymbolName != SymbolName) return;
             _state.Remove(p.Id);
+            _closing.Remove(p.Id);
             _lastCloseTime = Server.Time;
             RecomputeRealized();
             Log(string.Format("closed {0} net {1:F2} ({2})", p.Id, p.NetProfit, e.Reason));
@@ -607,8 +622,11 @@ namespace cAlgo.Robots
             _flatDone = false;
         }
 
+        // today's realised P&L of this label + symbol from History; partial closes appear there as
+        // separate deals (Positions.Closed does not fire for them)
         private void RecomputeRealized()
         {
+            _realizedAt = Server.Time;
             double s = 0;
             foreach (var h in History.FindAll(Label, SymbolName))
                 if (h.ClosingTime >= _day) s += h.NetProfit;
@@ -682,7 +700,6 @@ namespace cAlgo.Robots
             if (_state.ContainsKey(p.Id)) return;
             _state[p.Id] = new PosState { Unit = unit, Best = p.EntryPrice, TrailOn = TrailingStopMult > 0 && !(Tp1Mult > 0) };
             _tradesToday++;
-            _nextUnit = double.NaN;
         }
 
         private void ManagePositions(Position[] mine, DateTime now)
@@ -744,10 +761,14 @@ namespace cAlgo.Robots
             if (!r.IsSuccessful) Print("modify SL failed: " + r.Error);
         }
 
+        // "closing" guard: one close attempt per position per minute, so a rejected close cannot spam every tick
         private void ClosePos(Position p, string why)
         {
+            DateTime last;
+            if (_closing.TryGetValue(p.Id, out last) && Server.Time < last.AddMinutes(1)) return;
+            _closing[p.Id] = Server.Time;
             var r = ClosePosition(p);
-            if (!r.IsSuccessful) Print("close failed (" + why + "): " + r.Error);
+            if (!r.IsSuccessful) Print("close failed (" + why + "): " + r.Error + " - retry in 1 min");
             else Log("closed position " + p.Id + ": " + why);
         }
 

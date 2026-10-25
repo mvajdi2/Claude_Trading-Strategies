@@ -129,6 +129,7 @@ The fixed templates map to `TpMult`. `ExitStyle = Native` reproduces the card's 
     differs from bar to bar.
   - The VWAP level, σ and so `frac_up`, slope and touches will differ somewhat. This is the largest
     source of divergence.
+  - Backtest only with **tick data from server**. On bar data, TickVolumes can be synthetic.
 - **Prices:** Python uses the mid. cTrader bars use the bid.
 - **Trailing granularity:**
   - Python updates the trailing stop every second from the 1-second extremes.
@@ -139,11 +140,18 @@ The fixed templates map to `TpMult`. `ExitStyle = Native` reproduces the card's 
   modelled spread + $0.03.
 - **History at start:** the bot loads about 4 days of m5 history so the first session's VWAP and ATR
   are complete. Signals found during warm-up are counted but not traded.
-- **Daily-loss guard:** it counts this bot's label only. Python has no such guard.
+- **Daily-loss guard:**
+  - It counts this bot's label only: realised P&L of today from `History`, including partial
+    closes, refreshed on each close and every minute, plus open P&L. Python has no such guard.
+- **DrawLevels:** only the current VWAP session is drawn (VWAP ± 1.5σ segments per 5m bar). The
+  previous session's objects are removed when a new session starts.
 
 ## Recommended cTrader backtest settings
 - Symbol **XAUUSD**, chart period **m1**. The bot loads its own m5 series.
-- Data: **Tick data from server (accurate)**. Tick data matters here because of the trailing stop.
+- Data: **Tick data from server (accurate) is REQUIRED**, not optional.
+  - On m1 or bar data, cTrader's `TickVolumes` can be synthetic or uninformative. The tick-volume
+    VWAP weighting would then be meaningless.
+  - The per-tick trailing stop also needs real ticks.
 - Dates: **01/01/2025 → today**. Also look at **Jun–Oct 2026** on its own (the blind OOS period).
 - Commission: **$7 per lot round trip**. Spread: the broker's real spread.
 - Risk mode PercentOfEquity, 0.5%. Load `cbots/presets/AvwapLondon_XAUUSD.cbotset`.

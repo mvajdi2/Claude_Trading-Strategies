@@ -140,31 +140,63 @@ The exit templates (`sl` 0.5–2.0, `tp` 0.5–3.0) map to `SlMult` and `TpMult`
   highs and lows, ATR and RV therefore differ slightly, by about half the spread.
 - **Decision time:** Python uses the mid at 05:59:59. The cBot uses the mid at the first tick of the
   first 1-minute bar at or after 06:00.
-- **Vol-state history:**
+- **Vol-state history (window length):**
   - Python's data starts on 2025-01-01, so the top-tercile filter only became active after 60 days
-    of RV, around late March 2025. Python therefore took no trades before then.
-  - The cBot loads up to `HistoryDays` (400) of 5-minute history at start with `LoadMoreHistory`,
-    so it can trade in Q1 2025.
-  - When you compare results with Python, start the comparison in April 2025.
-  - If the broker has less history, the bot waits until 60 days have built up.
+    of RV, around late March 2025. Its percentile window then grows from 60 to 250 days through
+    2025, and is a full 250 days only from about late 2025 onward.
+  - The cBot tries to load `HistoryDays` (400) of 5-minute history at start with
+    `LoadMoreHistory`. If that works, it uses a full 250-day window from the first day. The
+    top-tercile days, and therefore the traded days, then differ from Python **throughout 2025**,
+    not only in Q1. From about 2026 on, both use 250-day windows and should agree.
+  - The backtester may not serve history before the start date: `LoadMoreHistory` can return
+    nothing. In that case the window builds up inside the test, as in Python, and the bot takes no
+    vol-filtered trades until 60 RV days exist.
+  - **How to tell which case happened:** the bot always prints a start-up line:
+    `started: earliest m1 bar …, earliest m5 bar …; daily rows N (ATR needs 15), RV days M (vol
+    state needs 60)`.
+    - If the earliest m5 bar is about the start date (RV days ≈ 0), nothing was loaded. Start the
+      backtest at least **3 months before** the period you want to compare. To mimic Python
+      exactly, start on 01/01/2025.
+    - If the earliest bar is about a year before the start, the full window was loaded.
 - **Daily bars:** the bot builds the 23:00–21:00 UTC daily bars from 1-minute bars, as Python does,
   instead of using the broker's D1 bars. Broker data gaps change the bar count and so the
   ≥ 300-bar rule.
 - **Bars with few ticks:** Python drops 5-minute bars with fewer than 5 ticks. cTrader has no such
   filter, which affects RV only marginally.
 - **Spread guard:** the spread is checked when the orders are placed at 06:00, not at the fill.
-- **Daily-loss guard:** it counts this bot's label only: realised P&L from history since 00:00 UTC
+- **Daily-loss guard:** it counts this bot's label only (realised P&L of today from `History`, so
+  partial closes are included, refreshed on each close and every minute, plus open P&L): realised P&L from history since 00:00 UTC
   plus open P&L. Python has no daily-loss guard. The 3% default never triggers at 0.5% risk with
   one trade per day.
 - **Force-flat:** 20:55 UTC instead of the Python engine's 21:00. Positions are already flat at
   16:00, so nothing changes.
-- **Rare double fill:** if both stop orders fill in the same burst, before the sibling is cancelled,
-  a second position can open.
+- **OCO double fill:**
+  - Live, cancelling the sibling stop order is a server round-trip. In a fast spike the second
+    stop can fill before the cancel arrives.
+  - The bot neutralises this in `OnPositionOpened`. If another position with this label and
+    symbol is already open, or today's trade count has reached `MaxTradesPerDay`, the new position
+    is closed at market at once and never registered. The bot prints
+    `OCO double fill: closed second position`, and any remaining pending orders are cancelled.
+  - The cost of such an event is one extra round trip (spread + commission + slippage on the
+    second leg). Python instead skips a day where both levels are touched within one second.
+  - **Use a hedging account.** On a netting account, the second fill would offset or reverse the
+    first position before the bot can react, and the "close the second leg" logic cannot restore
+    the original trade.
+- **Minimum stop distance:**
+  - At 06:00 the bot places a side only if its level is further from the market than the broker's
+    `MinStopLossDistance`. This means more than that distance above the ask for the buy stop, or
+    below the bid for the sell stop.
+  - Python places both orders whenever the mid is strictly inside the levels.
+  - The levels are at least the $2 buffer outside the range, and XAUUSD minimum distances are
+    usually 0, so this rarely matters. When it does, the log prints `side skipped`.
+  - SL and TP distances are also widened to at least the broker's minimum stop and target
+    distances.
 
 ## Recommended cTrader backtest settings
 - Symbol **XAUUSD**, chart period **m1**. The bot loads its own m1 and m5 series.
 - Data: **Tick data from server (accurate)**.
-- Dates: **01/01/2025 → today**. Also look at **Jun–Oct 2026** on its own (the blind OOS period).
+- Dates: **01/01/2025 → today**. Check the `started:` log line for loaded history. See
+  "Vol-state history". Also look at **Jun–Oct 2026** on its own (the blind OOS period).
 - Commission: **$7 per lot round trip** ($3.50 per side). Spread: the broker's real spread.
-- Starting balance: for example 10,000 USD. Risk mode PercentOfEquity, 0.5%.
+- Account type: **hedging** (see "OCO double fill"). Starting balance: for example 10,000 USD. Risk mode PercentOfEquity, 0.5%.
 - Load `cbots/presets/AsianRangeBreakout_XAUUSD.cbotset`.
